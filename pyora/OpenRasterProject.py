@@ -121,7 +121,7 @@ class OpenRasterItemBase:
 
     @opacity.setter
     def opacity(self, value):
-        self._elem.set('visibility', 'visible' if value else 'hidden')
+        self._elem.set('opacity', str(float(value)))
 
     @property
     def offsets(self):
