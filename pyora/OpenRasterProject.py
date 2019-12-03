@@ -286,6 +286,7 @@ class Project:
         self._children_paths = {}
         self._children_elems = {}
         self._children_uuids = {}
+        self._extracted_merged_image = None
 
 
     def __iter__(self):
@@ -320,6 +321,8 @@ class Project:
             self._children_uuids = {}
 
             # super().__init__(zipref, self)
+            with zipref.open('mergedimage.png') as mergedimage:
+                self._extracted_merged_image = Image.open(mergedimage)
 
             try:
                 with zipref.open('stack.xml') as metafile:
@@ -378,6 +381,7 @@ class Project:
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
                                         f'visibility="visible"></stack></image>')
         self._root_group = Group(self, None, self._elem_root[0], '/')
+        self._extracted_merged_image = None
 
     def save(self, path, composite_image=None):
         """
@@ -574,26 +578,30 @@ class Project:
     def get_by_uuid(self, uuid):
         return self._children_uuids[uuid]
 
-    def get_image_data(self):
+    def get_image_data(self, use_original=False):
         """
         Get a PIL Image() object of the entire project (composite)
+        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
+        just return that. In any other case a new merged image is generated.
         :return: PIL Image()
         """
 
-        with self.zipref.open('mergedimage.png') as compositeFile:
-            _compositeData = Image.open(compositeFile)
+        if self._extracted_merged_image and use_original:
+            return self._extracted_merged_image
 
-        return _compositeData
+        return make_merged_image(self)
 
-    def get_thumbnail_image_data(self):
+    def get_thumbnail_image_data(self, use_original=False):
         """
-        Get a PIL Image() object of the entire project (composite)
+        Get a PIL Image() object of the entire project (composite) (standard 256x256 max ORA thumbnail size
+        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
+        just return that. In any other case a new merged image is generated.
         :return: PIL Image()
         """
-        with self.zipref.open('Thumbnails/thumbnail.png') as compositeFile:
-            _compositeData = Image.open(compositeFile)
+        if self._extracted_merged_image and use_original:
+            return make_thumbnail(self._extracted_merged_image)
 
-        return _compositeData
+        return make_thumbnail(make_merged_image(self))
 
 
 
