@@ -377,7 +377,9 @@ class Project:
                                         f'xres="{xres}" yres="{yres}">'
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
                                         f'visibility="visible"></stack></image>')
-        self._root_group = Group(self, None, self._elem_root[0], '/')
+
+        self._elem = self._elem_root[0]
+        self._root_group = Group(self, None, self._elem, '/')
 
     def save(self, path, composite_image=None):
         """
