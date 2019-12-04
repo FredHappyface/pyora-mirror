@@ -67,6 +67,7 @@ class OpenRasterItemBase:
 
     @name.setter
     def name(self, value):
+
         self._elem.set('name', str(value))
 
     @property
@@ -198,6 +199,22 @@ class Group(OpenRasterItemBase):
     def __repr__(self):
         return f'<OpenRaster Group "{self.name}" ({self.UUID})>'
 
+    @OpenRasterItemBase.name.setter
+    def name(self, value):
+
+        old_path = self._path
+        parts = self._path.split('/')
+        parts[-1] = value
+        self._path = '/'.join(parts)
+
+        # in this case we also need to go through all the other paths that involved this group and replace them
+        for _path in self._project._children_paths:
+            if _path.startswith(old_path):
+                _new_path = _path.replace(old_path, self._path, 1)
+                self._project._children_paths[_new_path] = self._project._children_paths.pop(_path)
+
+        self._elem.set('name', str(value))
+
     def _add_child(self, child):
         if child.type == TYPE_GROUP:
             self._groups.append(child)
@@ -240,6 +257,18 @@ class Layer(OpenRasterItemBase):
 
     def __repr__(self):
         return f'<OpenRaster Layer "{self.name}" ({self.UUID})>'
+
+    @OpenRasterItemBase.name.setter
+    def name(self, value):
+
+        # need to update stored paths in parent
+        old_path = self._path
+        parts = self._path.split('/')
+        parts[-1] = value
+        self._path = '/'.join(parts)
+        self._project._children_paths[self._path] = self._project._children_paths.pop(old_path)
+
+        self._elem.set('name', str(value))
 
     def _set_image_data(self, image):
         self.image = image
