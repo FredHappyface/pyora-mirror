@@ -286,6 +286,7 @@ class Project:
         self._children_paths = {}
         self._children_elems = {}
         self._children_uuids = {}
+        self._extracted_merged_image = None
 
 
     def __iter__(self):
@@ -320,6 +321,8 @@ class Project:
             self._children_uuids = {}
 
             # super().__init__(zipref, self)
+            with zipref.open('mergedimage.png') as mergedimage:
+                self._extracted_merged_image = Image.open(mergedimage)
 
             try:
                 with zipref.open('stack.xml') as metafile:
@@ -377,11 +380,11 @@ class Project:
                                         f'xres="{xres}" yres="{yres}">'
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
                                         f'visibility="visible"></stack></image>')
-
         self._elem = self._elem_root[0]
         self._root_group = Group(self, None, self._elem, '/')
+        self._extracted_merged_image = None
 
-    def save(self, path, composite_image=None):
+    def save(self, path, composite_image=None, use_original=False):
         """
         Save the current project state to an ORA file.
         :param path: path to the ora file to save
@@ -389,6 +392,8 @@ class Project:
         mergedimage full rendered preview, as well as the thumbnail image. If not provided, we will attempt to
         generate one by stacking all of the layers in the project. Note that the image you pass may be modified
         during this process, so if you need to use it elsewhere in your code, you should copy() first.
+        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
+        use that for the 'mergedimage' in the new file
         :return: None
         """
         with zipfile.ZipFile(path, 'w') as zipref:
@@ -397,7 +402,10 @@ class Project:
             zipref.writestr('stack.xml', ET.tostring(self._elem_root, method='xml'))
 
             if not composite_image:
-                composite_image = make_merged_image(self)
+                if use_original and self._extracted_merged_image:
+                    composite_image = self._extracted_merged_image
+                else:
+                    composite_image = make_merged_image(self)
             self._zip_store_image(zipref, 'mergedimage.png', composite_image)
 
             make_thumbnail(composite_image)  # works in place
@@ -576,26 +584,30 @@ class Project:
     def get_by_uuid(self, uuid):
         return self._children_uuids[uuid]
 
-    def get_image_data(self):
+    def get_image_data(self, use_original=False):
         """
         Get a PIL Image() object of the entire project (composite)
+        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
+        just return that. In any other case a new merged image is generated.
         :return: PIL Image()
         """
 
-        with self.zipref.open('mergedimage.png') as compositeFile:
-            _compositeData = Image.open(compositeFile)
+        if self._extracted_merged_image and use_original:
+            return self._extracted_merged_image
 
-        return _compositeData
+        return make_merged_image(self)
 
-    def get_thumbnail_image_data(self):
+    def get_thumbnail_image_data(self, use_original=False):
         """
-        Get a PIL Image() object of the entire project (composite)
+        Get a PIL Image() object of the entire project (composite) (standard 256x256 max ORA thumbnail size
+        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
+        just return that. In any other case a new merged image is generated.
         :return: PIL Image()
         """
-        with self.zipref.open('Thumbnails/thumbnail.png') as compositeFile:
-            _compositeData = Image.open(compositeFile)
+        if self._extracted_merged_image and use_original:
+            return make_thumbnail(self._extracted_merged_image)
 
-        return _compositeData
+        return make_thumbnail(make_merged_image(self))
 
 
 
