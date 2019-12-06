@@ -56,6 +56,7 @@ class OpenRasterItemBase:
 
     @UUID.setter
     def UUID(self, value):
+        self._project._children_uuids[str(value)] = self
         self._elem.set('UUID', str(value))
 
     @property
