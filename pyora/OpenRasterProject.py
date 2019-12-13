@@ -323,6 +323,17 @@ class Project:
         for layer in reversed(self._elem_root.findall('.//layer')):
             yield self._children_elems[layer]
 
+    @property
+    def iter_layers(self):
+        return self.__iter__()
+
+    @property
+    def iter_groups(self):
+        for group in reversed(self._elem_root.findall('.//stack')):
+            if group == self._root_group._elem:
+                yield self._root_group
+            else:
+                yield self._children_elems[group]
 
     def _zip_store_image(self, zipref, path, image):
         imgByteArr = io.BytesIO()
@@ -474,6 +485,7 @@ class Project:
         # add xml element
         elem = self._add_elem('layer', path, **kwargs, src=new_filename)
         obj = Layer(image, self, self._get_parent_from_path(path), elem, path)
+        obj._parent._add_child(obj)
 
         self.children.append(obj)
         self._children_paths[path] = obj
@@ -493,6 +505,7 @@ class Project:
     def _add_group(self, path, **kwargs):
         elem = self._add_elem('stack', path, **kwargs)
         obj = Group(self, self._get_parent_from_path(path), elem, path)
+        obj._parent._add_child(obj)
 
         self.children.append(obj)
         self._children_paths[path] = obj
