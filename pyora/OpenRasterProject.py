@@ -342,19 +342,81 @@ class Project:
         zipref.writestr(path, imgByteArr.read())
 
     @staticmethod
-    def load(path):
+    def extract_layer(path_or_file, path=None, UUID=None, pil=False):
+        """
+        Efficiently extract just one specific layer image
+        :param path_or_file: Path to ORA file or file handle
+        :param path: Path of layer to extract in the ORA file
+        :param UUID: UUID of layer to search for in the ORA file (if path not provided)
+        :param pil: for consistency, if true, wrap the image with PIL and return Image()
+        otherwise return raw bytes
+        :return: bytes or PIL Image()
+        """
+        with zipfile.ZipFile(path_or_file, 'r') as zipref:
+            with zipref.open('stack.xml') as metafile:
+                _elem_root = ET.fromstring(metafile.read()).find('stack')
+                print(_elem_root.attrib)
+                if path:
+                    if path[0] == '/':
+                        path = path[1:]
+                    for path_part in path.split('/'):
+                        _elem_root = _elem_root.find(f"*[@name='{path_part}']")
+                        if _elem_root is None:
+                            raise ValueError("While following path, part %s not found in ORA!" % path_part)
+                else:
+                    _elem_root = _elem_root.find(f".//layer[@uuid='{UUID}']")
+                    if not _elem_root:
+                        raise ValueError("Unable to find layer with UUID %s in ORA!" % UUID)
+
+            with zipref.open(_elem_root.attrib['src']) as imgdata:
+                if pil:
+                    return Image.open(imgdata)
+                return imgdata.read()
+
+    @staticmethod
+    def extract_composite(path_or_file, pil=False):
+        """
+        Efficiently extract just the composite image
+        :param path_or_file: Path to ORA file or file handle
+        :param pil: for consistency, if true, wrap the image with PIL and return Image()
+        otherwise return raw bytes
+        :return: bytes or PIL Image()
+        """
+        with zipfile.ZipFile(path_or_file, 'r') as zipref:
+            with zipref.open('mergedimage.png') as imgdata:
+                if pil:
+                    return Image.open(imgdata)
+                return imgdata.read()
+
+    @staticmethod
+    def extract_thumbnail(path_or_file, pil=False):
+        """
+        Efficiently extract just the thumbnail image
+        :param path_or_file: Path to ORA file or file handle
+        :param pil: for consistency, if true, wrap the image with PIL and return Image()
+        otherwise return raw bytes
+        :return: bytes or PIL Image()
+        """
+        with zipfile.ZipFile(path_or_file, 'r') as zipref:
+            with zipref.open('Thumbnails/thumbnail.png') as imgdata:
+                if pil:
+                    return Image.open(imgdata)
+                return imgdata.read()
+
+    @staticmethod
+    def load(path_or_file):
         """
         Factory function. Get a new project with data from an existing ORA file
         :param path: path to ORA file to load
         :return: None
         """
         proj = Project()
-        proj._load(path)
+        proj._load(path_or_file)
         return proj
 
-    def _load(self, path):
+    def _load(self, path_or_file):
 
-        with zipfile.ZipFile(path, 'r') as zipref:
+        with zipfile.ZipFile(path_or_file, 'r') as zipref:
 
             self._children = []
             self._children_paths = {}
@@ -450,7 +512,7 @@ class Project:
             self._zip_store_image(zipref, 'mergedimage.png', composite_image)
 
             make_thumbnail(composite_image)  # works in place
-            self._zip_store_image(zipref, 'thumbnails/thumbnail.png', composite_image)
+            self._zip_store_image(zipref, 'Thumbnails/thumbnail.png', composite_image)
 
             for layer in self.children:
                 if layer.type == TYPE_LAYER:
