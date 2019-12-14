@@ -274,6 +274,14 @@ class Layer(OpenRasterItemBase):
     def _set_image_data(self, image):
         self.image = image
 
+    def set_image_data(self, image):
+        """
+        Change the image data for this layer
+        :param image: pil Image() object of the new layer
+        :return: None
+        """
+        self._set_image_data(image)
+
     def get_image_data(self, raw=False):
         """
         Get a PIL Image() object of the layer.
