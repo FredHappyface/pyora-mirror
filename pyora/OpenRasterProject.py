@@ -87,6 +87,15 @@ class OpenRasterItemBase:
         """
         return list(reversed(self._parent._elem.getchildren())).index(self._elem) + 1
 
+    @z_index.setter
+    def z_index(self, new_z_index):
+        """
+        Reposition this layer inside of this group. (Uses 'relative' z_index)
+        As with most z_index, 1 is the lowest value (painted first)
+        :param new_z_index:
+        :return:
+        """
+
 
     @property
     def visible(self):
@@ -495,7 +504,7 @@ class Project:
         self._root_group = Group(self, None, self._elem, '/')
         self._extracted_merged_image = None
 
-    def save(self, path, composite_image=None, use_original=False):
+    def save(self, path_or_file, composite_image=None, use_original=False):
         """
         Save the current project state to an ORA file.
         :param path: path to the ora file to save
@@ -507,7 +516,7 @@ class Project:
         use that for the 'mergedimage' in the new file
         :return: None
         """
-        with zipfile.ZipFile(path, 'w') as zipref:
+        with zipfile.ZipFile(path_or_file, 'w') as zipref:
 
             zipref.writestr('mimetype', "image/openraster".encode())
             zipref.writestr('stack.xml', ET.tostring(self._elem_root, method='xml'))
