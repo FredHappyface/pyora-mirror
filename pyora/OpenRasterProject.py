@@ -372,7 +372,6 @@ class Project:
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
             with zipref.open('stack.xml') as metafile:
                 _elem_root = ET.fromstring(metafile.read()).find('stack')
-                print(_elem_root.attrib)
                 if path:
                     if path[0] == '/':
                         path = path[1:]
@@ -607,7 +606,7 @@ class Project:
                 _sub_parent_path = '/' + '/'.join(parts[:i])
                 if not _sub_parent_path in self._children_paths:
                     # make new empty group
-                    self._add_group(_sub_parent_path)
+                    self._add_group(_sub_parent_path, isolation='isolate')
 
     def add_layer(self, image, path=None, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", UUID=None, **kwargs):
@@ -636,7 +635,7 @@ class Project:
                         composite_op=composite_op, UUID=UUID, **kwargs)
 
     def add_group(self, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
-                  composite_op="svg:src-over", UUID=None, **kwargs):
+                  composite_op="svg:src-over", UUID=None, isolation='isolate', **kwargs):
         """
         Append a new layer group to the project
         :param path: Absolute filesystem-like path of the group in the project. For example "/group1" or
@@ -646,8 +645,11 @@ class Project:
         :param opacity: float - group opacity 0.0 to 1.0
         :param visible: bool - is the group visible
         :param composite_op: str - composite operation attribute passed directly to stack / layer element
+        :param UUID: str - UUID identifier value for this group
+        :param isolation:str - one of 'isolate' or 'auto'
         :return: Layer() - reference to the newly created layer object
         """
+
         self._make_groups_recursively(path)
 
         if not path[0] == '/':
@@ -655,7 +657,7 @@ class Project:
 
         # make the new layer itself
         return self._add_group(path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
-                        composite_op=composite_op, UUID=UUID, **kwargs)
+                        composite_op=composite_op, UUID=UUID, isolation=isolation, **kwargs)
 
 
     @property
