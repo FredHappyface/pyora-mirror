@@ -92,6 +92,15 @@ class OpenRasterItemBase:
         """
         return list(reversed(self._parent._elem.getchildren())).index(self._elem) + 1
 
+    @z_index.setter
+    def z_index(self, new_z_index):
+        """
+        Reposition this layer inside of this group. (Uses 'relative' z_index)
+        As with most z_index, 1 is the lowest value (painted first)
+        :param new_z_index:
+        :return:
+        """
+
 
     @property
     def visible(self):
@@ -302,6 +311,14 @@ class Layer(OpenRasterItemBase):
     def _set_image_data(self, image):
         self.image = image
 
+    def set_image_data(self, image):
+        """
+        Change the image data for this layer
+        :param image: pil Image() object of the new layer
+        :return: None
+        """
+        self._set_image_data(image)
+
     def get_image_data(self, raw=False):
         """
         Get a PIL Image() object of the layer.
@@ -383,7 +400,6 @@ class Project:
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
             with zipref.open('stack.xml') as metafile:
                 _elem_root = ET.fromstring(metafile.read()).find('stack')
-                print(_elem_root.attrib)
                 if path:
                     if path[0] == '/':
                         path = path[1:]
@@ -515,7 +531,7 @@ class Project:
         self._root_group = Group(self, None, self._elem, '/')
         self._extracted_merged_image = None
 
-    def save(self, path, composite_image=None, use_original=False):
+    def save(self, path_or_file, composite_image=None, use_original=False):
         """
         Save the current project state to an ORA file.
         :param path: path to the ora file to save
@@ -527,7 +543,7 @@ class Project:
         use that for the 'mergedimage' in the new file
         :return: None
         """
-        with zipfile.ZipFile(path, 'w') as zipref:
+        with zipfile.ZipFile(path_or_file, 'w') as zipref:
 
             zipref.writestr('mimetype', "image/openraster".encode())
             zipref.writestr('stack.xml', ET.tostring(self._elem_root, method='xml'))
@@ -623,7 +639,7 @@ class Project:
                 _sub_parent_path = '/' + '/'.join(parts[:i])
                 if not _sub_parent_path in self._children_paths:
                     # make new empty group
-                    self._add_group(_sub_parent_path)
+                    self._add_group(_sub_parent_path, isolation='isolate')
 
     def add_layer(self, image, path=None, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", UUID=None, **kwargs):
@@ -662,6 +678,8 @@ class Project:
         :param opacity: float - group opacity 0.0 to 1.0
         :param visible: bool - is the group visible
         :param composite_op: str - composite operation attribute passed directly to stack / layer element
+        :param UUID: str - UUID identifier value for this group
+        :param isolation:bool - True or False
         :return: Layer() - reference to the newly created layer object
         """
         self._make_groups_recursively(path)
