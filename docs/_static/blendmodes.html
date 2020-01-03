@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tutorial</title>
+    <style>
+        .container{
+            position: relative;
+            width:250px;
+            height:250px;
+            top: -2px;
+        }
+        .container img{
+            position: absolute;
+            top:0;
+            left:0;
+        }
+        img{
+            max-width: unset;
+        }
+
+    </style>
+</head>
+<body>
+
+<h1>OpenRaster Supported blend and composite modes</h1>
+<p>
+    See below an overview of all currently specified layer combining modes in the ORA spec. Many of the descriptions were
+    taken verbatim from the <a href="https://www.w3.org/TR/compositing-1">w3c spec draft</a> on which many of the ORA modes are based.
+</p>
+<p>
+    Note that "Browser" here refers to the native browser css blend mode. Note that it does not always produce exactly the same effect
+    as other implementations. In order to attain the same blend modes cross browser it may be required to use the
+    <a href="https://gitlab.com/inklabapp/jsora">jsora</a> library, which is slower but more consistent.
+</p>
+
+<table>
+    <thead>
+        <tr>
+            
+            <th>ORA Attribute</th>
+            <th>Description</th>
+            <th>Lower (behind) Layer</th>
+            <th>Upper (above) Layer</th>
+            <th>Result (Krita)</th>
+            <th>Result (pyora)</th>
+            <th>Result (Browser)</th>
+            <th>Browser support?</th>
+
+        </tr>
+    </thead>
+    <tbody>
+
+
+<tr>
+
+    <td>svg:src-over</td>
+    <td>This is the default attribute which specifies no blending. The blending formula simply selects the source color.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/src-over-100-krita.png"></td>
+    <td><img src="../_static/img/src-over-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: unset;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:multiply</td>
+    <td>The source color is multiplied by the destination color and replaces the destination.
+The resultant color is always at least as dark as either the source or destination color. Multiplying any color with black results in black. Multiplying any color with white preserves the original color.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/multiply-100-krita.png"></td>
+    <td><img src="../_static/img/multiply-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: multiply;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:screen</td>
+    <td>Multiplies the complements of the backdrop and source color values, then complements the result.
+    The result color is always at least as light as either of the two constituent colors. Screening any color with white produces white; screening with black leaves the original color unchanged. The effect is similar to projecting multiple photographic slides simultaneously onto a single screen.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/screen-100-krita.png"></td>
+    <td><img src="../_static/img/screen-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: screen;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:overlay</td>
+    <td>Multiplies or screens the colors, depending on the backdrop color value.
+    Source colors overlay the backdrop while preserving its highlights and shadows. The backdrop color is not replaced but is mixed with the source color to reflect the lightness or darkness of the backdrop.
+    Overlay is the inverse of the hard-light blend mode. See the definition of hard-light for the formula.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/overlay-100-krita.png"></td>
+    <td><img src="../_static/img/overlay-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: overlay;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:darken</td>
+    <td>Selects the darker of the backdrop and source colors.
+    The backdrop is replaced with the source where the source is darker; otherwise, it is left unchanged.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/darken-100-krita.png"></td>
+    <td><img src="../_static/img/darken-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: darken;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+    <td>svg:lighten</td>
+    <td>Selects the lighter of the backdrop and source colors.
+    The backdrop is replaced with the source where the source is lighter; otherwise, it is left unchanged.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/lighten-100-krita.png"></td>
+    <td><img src="../_static/img/lighten-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: lighten;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:color-dodge</td>
+    <td>Brightens the backdrop color to reflect the source color. Painting with black produces no changes.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/color-dodge-100-krita.png"></td>
+    <td><img src="../_static/img/color-dodge-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: color-dodge;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:color-burn</td>
+    <td>Darkens the backdrop color to reflect the source color. Painting with white produces no change.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/color-burn-100-krita.png"></td>
+    <td><img src="../_static/img/color-burn-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: color-burn;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:hard-light</td>
+    <td>Multiplies or screens the colors, depending on the source color value. The effect is similar to shining a harsh spotlight on the backdrop.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/hard-light-100-krita.png"></td>
+    <td><img src="../_static/img/hard-light-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: hard-light;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:soft-light</td>
+    <td>Darkens or lightens the colors, depending on the source color value. The effect is similar to shining a diffused spotlight on the backdrop.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/soft-light-100-krita.png"></td>
+    <td><img src="../_static/img/soft-light-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: soft-light;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+    <td>svg:difference</td>
+    <td>Subtracts the darker of the two constituent colors from the lighter color.
+    Painting with white inverts the backdrop color; painting with black produces no change.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/difference-100-krita.png"></td>
+    <td><img src="../_static/img/difference-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: difference;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:color</td>
+    <td>Creates a color with the hue and saturation of the source color and the luminosity of the backdrop color. This preserves the gray levels of the backdrop and is useful for coloring monochrome images or tinting color images.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/color-100-krita.png"></td>
+    <td><img src="../_static/img/color-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: color;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:luminosity</td>
+    <td>Creates a color with the luminosity of the source color and the hue and saturation of the backdrop color. This produces an inverse effect to that of the Color mode.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/luminosity-100-krita.png"></td>
+    <td><img src="../_static/img/luminosity-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: luminosity;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:hue</td>
+    <td>Creates a color with the hue of the source color and the saturation and luminosity of the backdrop color.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/hue-100-krita.png"></td>
+    <td><img src="../_static/img/hue-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: hue;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+
+<tr>
+
+<td>svg:saturation</td>
+    <td>Creates a color with the saturation of the source color and the hue and luminosity of the backdrop color. Painting with this mode in an area of the backdrop that is a pure gray (no saturation) produces no change.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/saturation-100-krita.png"></td>
+    <td><img src="../_static/img/saturation-100-pyora.png"></td>
+    <td>
+        <div class="container">
+            <img src="../_static/img/med_lowerlayer.png">
+            <img src="../_static/img/med_upperlayer.png" style="mix-blend-mode: saturation;">
+        </div>
+    </td>
+    <td>Yes</td>
+</tr>
+
+<tr>
+
+    <td>svg:plus</td>
+    <td>Display the sum of the source image and destination image.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/plus-100-krita.png"></td>
+    <td><img src="../_static/img/plus-100-pyora.png"></td>
+    <td>
+
+    </td>
+    <td>No</td>
+</tr>
+
+<tr>
+
+    <td>svg:dst-in</td>
+    <td>Destination which overlaps the source, replaces the source.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/dst-in-100-krita.png"></td>
+    <td><img src="../_static/img/dst-in-100-pyora.png"></td>
+    <td>
+
+    </td>
+    <td>No</td>
+</tr>
+
+<tr>
+
+    <td>svg:dst-out</td>
+    <td>Destination is placed, where it falls outside of the source.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/dst-out-100-krita.png"></td>
+    <td><img src="../_static/img/dst-out-100-pyora.png"></td>
+    <td>
+
+    </td>
+    <td>No</td>
+</tr>
+
+<tr>
+
+    <td>svg:src-atop</td>
+    <td>Source which overlaps the destination, replaces the destination. Destination is placed elsewhere.
+        Note that this is commonly used the implement the "Clipping layer" functionality of many raster graphics programs.
+    </td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/src-atop-100-krita.png"></td>
+    <td><img src="../_static/img/src-atop-100-pyora.png"></td>
+    <td>
+
+    </td>
+    <td>No</td>
+</tr>
+
+<tr>
+
+    <td>svg:dst-atop</td>
+    <td>Destination which overlaps the source replaces the source. Source is placed elsewhere.</td>
+    <td><img src="../_static/img/med_lowerlayer.png"></td>
+    <td><img src="../_static/img/med_upperlayer.png"></td>
+    <td><img src="../_static/img/dst-atop-100-krita.png"></td>
+    <td><img src="../_static/img/dst-atop-100-pyora.png"></td>
+    <td>
+
+    </td>
+    <td>No</td>
+</tr>
+
+    </tbody>
+
+</table>
+
+<!--<h1>OpenRaster blend modes implemented in common raster graphic editors</h1>-->
+
+<!--<table>-->
+<!--    <thead>-->
+<!--    <th>-->
+<!--        <td>ORA attribute</td>-->
+<!--        <td>Krita</td>-->
+<!--        <td>GNU Imp / Glimpse</td>-->
+<!--        <td>Adobe Photoshop</td>-->
+<!--        <td>Procreate</td>-->
+
+<!--    </th>-->
+<!--    </thead>-->
+<!--    <tbody>-->
+<!--    <tr>-->
+<!--        <td>svg:src-over</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:multiply</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:screen</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:darken</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:lighten</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:color-dodge</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:color-burn</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:hard-light</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:soft-light</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:difference</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:color</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:luminosity</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:hue</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:saturation</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:plus</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:dst-in</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:dst-out</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:src-atop</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+<!--    <tr>-->
+<!--        <td>svg:dst-atop</td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--        <td></td>-->
+<!--    </tr>-->
+
+<!--    </tbody>-->
+<!--</table>-->
+
+
+<!--<script src="/dist/jsora.min.js"></script>-->
+<!--<script>-->
+
+
+<!--</script>-->
+
+
+</body>
+</html>

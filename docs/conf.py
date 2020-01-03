@@ -17,7 +17,7 @@ sys.path.insert(0, os.path.abspath('..'))
 # -- Project information -----------------------------------------------------
 
 project = 'pyora'
-copyright = '2019, Paul Jewell'
+copyright = '2020, Paul Jewell'
 author = 'Paul Jewell'
 
 # fix issue with readthedocs.io
@@ -51,4 +51,4 @@ html_theme = 'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ['_static', '_static/img']

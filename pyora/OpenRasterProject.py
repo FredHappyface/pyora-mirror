@@ -8,12 +8,9 @@ import struct
 import os
 import xml.etree.cElementTree as ET
 from io import BytesIO
-from pyora.Render import make_merged_image, make_thumbnail
+from pyora.Render import Renderer, make_thumbnail
+from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
 
-TYPE_LAYER = 0
-TYPE_GROUP = 1
-
-ORA_VERSION = "0.0.1"
 
 class OpenRasterItemBase:
 
@@ -42,6 +39,14 @@ class OpenRasterItemBase:
         :return
         """
         return self._type
+
+    @property
+    def parent(self):
+        """
+        Get the group object for the parent of this layer or group
+        :return:
+        """
+        return self._parent
 
     @property
     def is_group(self):
@@ -195,10 +200,33 @@ class Group(OpenRasterItemBase):
         self._children_uuids = {}
 
     def __iter__(self):
-        yield from self._children
+        yield from reversed(self._children)
 
     def __repr__(self):
         return f'<OpenRaster Group "{self.name}" ({self.UUID})>'
+
+    @property
+    def isolated(self):
+        """
+        :return: bool - is the layer rendered isolated
+        """
+        return self._elem.attrib.get('isolation', 'auto') == 'isolate'
+
+    @isolated.setter
+    def isolated(self, value):
+        """
+        Set the isolation rendering property of this group.
+        By default, groups are isolated, which means that composite and blending will be performed as if
+        the group was over a blank background. Other layers painted below the group are not composited/blended with
+        (until the whole group is done rendering by itself, at which point it is composited/blended with its own
+        composite-op attribute to the painted canvas below it) If isolation is turned off, the base background will
+        be the current canvas already painted, instead of a blank canvas.
+        To comply with ORA spec, the isolation property is ignored (and groups are forced to be rendered isolated)
+        if either (1) their opacity is less than 1.0 or (2) they use a composite-op other than 'svg:src-over'
+        :param value:
+        :return:
+        """
+        self._elem.set('isolation', 'isolate' if value else 'auto')
 
     @OpenRasterItemBase.name.setter
     def name(self, value):
@@ -508,7 +536,9 @@ class Project:
                 if use_original and self._extracted_merged_image:
                     composite_image = self._extracted_merged_image
                 else:
-                    composite_image = make_merged_image(self)
+                    # render using our built in library
+                    r = Renderer(self)
+                    composite_image = r.render()
             self._zip_store_image(zipref, 'mergedimage.png', composite_image)
 
             make_thumbnail(composite_image)  # works in place
@@ -569,6 +599,9 @@ class Project:
         obj = Group(self, self._get_parent_from_path(path), elem, path)
         obj._parent._add_child(obj)
 
+        if not 'isolation' in kwargs:
+            kwargs['isolation'] = 'isolate'
+
         self.children.append(obj)
         self._children_paths[path] = obj
         self._children_elems[elem] = obj
@@ -619,7 +652,7 @@ class Project:
                         composite_op=composite_op, UUID=UUID, **kwargs)
 
     def add_group(self, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
-                  composite_op="svg:src-over", UUID=None, **kwargs):
+                  composite_op="svg:src-over", UUID=None, isolated=True, **kwargs):
         """
         Append a new layer group to the project
         :param path: Absolute filesystem-like path of the group in the project. For example "/group1" or
@@ -636,7 +669,9 @@ class Project:
         if not path[0] == '/':
             path = '/' + path
 
-        # make the new layer itself
+        kwargs['isolation'] = 'isolate' if isolated else 'auto'
+
+        # make the new group itself
         return self._add_group(path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
                         composite_op=composite_op, UUID=UUID, **kwargs)
 

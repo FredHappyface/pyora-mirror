@@ -10,8 +10,7 @@ General Info
 
 Limitations
 =======================================
-    - Creating the "mergedimage" component of the ORA file (for preview) currently only supports "svg:src-over" (simple) compositing. So it is recommended to provide your own composite image file for the most accurate previews.
-    - The mergedimage limitations also apply to thumbnails
+    - The implementations for the non-separable blend modes (hue, color, saturation, luminosity) are currently non-vectorized and quite slow
     - When modifying an existing file in place, currently only adding / modifying layers is supported. Moving in the tree and deleting soon to come.
 
 
@@ -106,6 +105,24 @@ When adding layers, the z_index always refers the offset in the group you are pu
 
     project.save("<path to some .ora save location>")
 
+Manual Rendering
+=======================================
 
+You can render together some layers using the composite operators, without the overhead of exporting a whole project.
+
+::
+
+
+    from pyora import Renderer
+
+    project = Project.new(200, 200)
+    project.add_layer(Image.open("/home/pjewell/Pictures/Screenshot_20191105_113922.png"), 'g1/l1')
+    project.add_layer(Image.open("/home/pjewell/Pictures/192-1.jpg"), 'g1/l2', composite_op='svg:color-burn')
+    r = Renderer(project)
+    final = r.render()  # returns PIL Image()
+    final.save(f'/home/pjewell/Pictures/composite_quick.png')
+
+    # optional, for comparison
+    project.save(f'/home/pjewell/Pictures/composite_quick.ora')
 
 .. _Pillow/PIL Image() Object: https://pillow.readthedocs.io/en/stable/reference/Image.html

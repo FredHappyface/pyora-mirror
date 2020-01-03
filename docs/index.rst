@@ -13,15 +13,9 @@ Please see https://openraster.org for the official spec.
    :caption: Contents:
 
    usage/quickstart
+   usage/blendmodes
+   usage/module_overview
 
-.. autoclass:: pyora.Project
-   :members:
-
-.. autoclass:: pyora.Layer
-   :members:
-
-.. autoclass:: pyora.Group
-   :members:
 
 Indices and tables
 ==================
