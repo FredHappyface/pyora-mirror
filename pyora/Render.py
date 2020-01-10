@@ -53,16 +53,6 @@ svg:src-atop	Normal	                 Source Atop
 svg:dst-atop	Normal	                 Destination Atop
 
 
-
-Dodge (blend_modes.dodge)
-Addition (blend_modes.addition)
-
-
-
-Subtract (blend_modes.subtract)
-Grain Extract (known from GIMP, blend_modes.grain_extract)
-Grain Merge (known from GIMP, blend_modes.grain_merge)
-Divide (blend_modes.divide)
 """
 
 from pyora.Blend import *

@@ -3,7 +3,7 @@
 
 """
 import numpy as np
-from pyora.Blend import _compose_alpha, reshape_img_in
+from pyora.Blend import reshape_dest
 
 
 """
@@ -19,7 +19,7 @@ co = αs x Fa x Cs + αb x Fb x Cb
 """
 
 def prep_operators(source, destination, opacity, offsets):
-    destination = reshape_img_in(destination, source, offsets)
+    destination = reshape_dest(destination, source, offsets)
 
     source_norm = source / 255.0
     destination_norm = destination / 255.0
