@@ -53,16 +53,16 @@ class OpenRasterItemBase:
         return self.type == TYPE_GROUP
 
     @property
-    def UUID(self):
+    def uuid(self):
         """
-        :return: str - the layer UUID
+        :return: str - the layer uuid
         """
-        return self._elem.attrib.get('UUID', None)
+        return self._elem.attrib.get('uuid', None)
 
-    @UUID.setter
-    def UUID(self, value):
+    @uuid.setter
+    def uuid(self, value):
         self._project._children_uuids[str(value)] = self
-        self._elem.set('UUID', str(value))
+        self._elem.set('uuid', str(value))
 
     @property
     def name(self):
@@ -212,7 +212,7 @@ class Group(OpenRasterItemBase):
         yield from reversed(self._children)
 
     def __repr__(self):
-        return f'<OpenRaster Group "{self.name}" ({self.UUID})>'
+        return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
 
     @property
     def isolated(self):
@@ -257,14 +257,14 @@ class Group(OpenRasterItemBase):
         if child.type == TYPE_GROUP:
             self._groups.append(child)
             self._groups_names[child.name] = child
-            self._groups_uuids[child.UUID] = child
+            self._groups_uuids[child.uuid] = child
         if child.type == TYPE_LAYER:
             self._layers.append(child)
             self._layers_names[child.name] = child
-            self._layers_uuids[child.UUID] = child
+            self._layers_uuids[child.uuid] = child
         self._children.append(child)
         self._children_names[child.name] = child
-        self._children_uuids[child.UUID] = child
+        self._children_uuids[child.uuid] = child
 
     @property
     def layers(self):
@@ -294,7 +294,7 @@ class Layer(OpenRasterItemBase):
         self.image = image
 
     def __repr__(self):
-        return f'<OpenRaster Layer "{self.name}" ({self.UUID})>'
+        return f'<OpenRaster Layer "{self.name}" ({self.uuid})>'
 
     @OpenRasterItemBase.name.setter
     def name(self, value):
@@ -387,12 +387,12 @@ class Project:
         zipref.writestr(path, imgByteArr.read())
 
     @staticmethod
-    def extract_layer(path_or_file, path=None, UUID=None, pil=False):
+    def extract_layer(path_or_file, path=None, uuid=None, pil=False):
         """
         Efficiently extract just one specific layer image
         :param path_or_file: Path to ORA file or file handle
         :param path: Path of layer to extract in the ORA file
-        :param UUID: UUID of layer to search for in the ORA file (if path not provided)
+        :param uuid: uuid of layer to search for in the ORA file (if path not provided)
         :param pil: for consistency, if true, wrap the image with PIL and return Image()
         otherwise return raw bytes
         :return: bytes or PIL Image()
@@ -408,9 +408,9 @@ class Project:
                         if _elem_root is None:
                             raise ValueError("While following path, part %s not found in ORA!" % path_part)
                 else:
-                    _elem_root = _elem_root.find(f".//layer[@uuid='{UUID}']")
+                    _elem_root = _elem_root.find(f".//layer[@uuid='{uuid}']")
                     if not _elem_root:
-                        raise ValueError("Unable to find layer with UUID %s in ORA!" % UUID)
+                        raise ValueError("Unable to find layer with uuid %s in ORA!" % uuid)
 
             with zipref.open(_elem_root.attrib['src']) as imgdata:
                 if pil:
@@ -501,7 +501,7 @@ class Project:
 
                     self._children_paths[cur_path] = _new
                     self._children_elems[child_elem] = _new
-                    self._children_uuids[_new.UUID] = _new
+                    self._children_uuids[_new.uuid] = _new
 
             self._root_group = Group(self, None, self._elem, '/')
             _build_tree(self._root_group, '')
@@ -598,7 +598,7 @@ class Project:
         self.children.append(obj)
         self._children_paths[path] = obj
         self._children_elems[elem] = obj
-        self._children_uuids[obj.UUID] = obj
+        self._children_uuids[obj.uuid] = obj
 
         return obj
 
@@ -606,8 +606,8 @@ class Project:
     #     item = self._children_paths[path]
     #     del self._children_paths[path]
     #     del self._children_elems[item._elem]
-    #     if item.UUID:
-    #         del self._children_uuids[item.UUID]
+    #     if item.uuid:
+    #         del self._children_uuids[item.uuid]
     #     self.children.remove(item)
 
     def _add_group(self, path, **kwargs):
@@ -621,7 +621,7 @@ class Project:
         self.children.append(obj)
         self._children_paths[path] = obj
         self._children_elems[elem] = obj
-        self._children_uuids[obj.UUID] = obj
+        self._children_uuids[obj.uuid] = obj
         return obj
 
     def _make_groups_recursively(self, path):
@@ -642,7 +642,7 @@ class Project:
                     self._add_group(_sub_parent_path, isolation='isolate')
 
     def add_layer(self, image, path=None, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
-                  composite_op="svg:src-over", UUID=None, **kwargs):
+                  composite_op="svg:src-over", uuid=None, **kwargs):
         """
         Append a new layer to the project
         :param image: a PIL Image() object containing the image data to add
@@ -665,10 +665,10 @@ class Project:
 
         # make the new layer itself
         return self._add_layer(image, path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
-                        composite_op=composite_op, UUID=UUID, **kwargs)
+                        composite_op=composite_op, uuid=uuid, **kwargs)
 
     def add_group(self, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
-                  composite_op="svg:src-over", UUID=None, isolated=True, **kwargs):
+                  composite_op="svg:src-over", uuid=None, isolated=True, **kwargs):
         """
         Append a new layer group to the project
         :param path: Absolute filesystem-like path of the group in the project. For example "/group1" or
@@ -678,7 +678,7 @@ class Project:
         :param opacity: float - group opacity 0.0 to 1.0
         :param visible: bool - is the group visible
         :param composite_op: str - composite operation attribute passed directly to stack / layer element
-        :param UUID: str - UUID identifier value for this group
+        :param uuid: str - uuid identifier value for this group
         :param isolation:bool - True or False
         :return: Layer() - reference to the newly created layer object
         """
@@ -691,7 +691,7 @@ class Project:
 
         # make the new group itself
         return self._add_group(path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
-                        composite_op=composite_op, UUID=UUID, **kwargs)
+                        composite_op=composite_op, uuid=uuid, **kwargs)
 
 
     @property
@@ -722,7 +722,7 @@ class Project:
         return self._children_paths
 
     @property
-    def UUIDs(self):
+    def uuids(self):
         return self._children_uuids
 
     @property
