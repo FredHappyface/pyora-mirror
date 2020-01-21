@@ -409,7 +409,7 @@ class Project:
                             raise ValueError("While following path, part %s not found in ORA!" % path_part)
                 else:
                     _elem_root = _elem_root.find(f".//layer[@uuid='{uuid}']")
-                    if not _elem_root:
+                    if _elem_root is None:
                         raise ValueError("Unable to find layer with uuid %s in ORA!" % uuid)
 
             with zipref.open(_elem_root.attrib['src']) as imgdata:
