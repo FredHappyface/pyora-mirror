@@ -209,7 +209,7 @@ class Group(OpenRasterItemBase):
         self._children_uuids = {}
 
     def __iter__(self):
-        yield from reversed(self._children)
+        yield from self.children
 
     def __repr__(self):
         return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
@@ -253,26 +253,21 @@ class Group(OpenRasterItemBase):
 
         self._elem.set('name', str(value))
 
-    def _add_child(self, child):
-        if child.type == TYPE_GROUP:
-            self._groups.append(child)
-            self._groups_names[child.name] = child
-            self._groups_uuids[child.uuid] = child
-        if child.type == TYPE_LAYER:
-            self._layers.append(child)
-            self._layers_names[child.name] = child
-            self._layers_uuids[child.uuid] = child
-        self._children.append(child)
-        self._children_names[child.name] = child
-        self._children_uuids[child.uuid] = child
+    @property
+    def children(self):
+        for _child in self._project.children:
+            if _child.path.startswith(self.path + '/'):
+                yield _child
 
     @property
-    def layers(self):
-        return self._layers
+    def paths(self):
+        for _path in self._project._children_paths:
+            if _path.startswith(self.path + '/'):
+                yield _path
 
     @property
-    def groups(self):
-        return self._groups
+    def uuids(self):
+        return self._children_uuids
 
     def get_image_data(self, raw=False):
         """
@@ -486,13 +481,11 @@ class Project:
                     cur_path = basepath + '/' + child_elem.attrib['name']
                     if child_elem.tag == 'stack':
                         _new = Group(self, parent, child_elem, cur_path)
-                        parent._add_child(_new)
                         _build_tree(_new, cur_path)
                     elif child_elem.tag == 'layer':
                         with zipref.open(child_elem.attrib['src']) as layerFile:
                             image = Image.open(layerFile)
                         _new = Layer(image, self, parent, child_elem, cur_path)
-                        parent._add_child(_new)
                     else:
                         print(f"Warning: unknown tag in stack: {child_elem.tag}")
                         continue
@@ -593,7 +586,6 @@ class Project:
         # add xml element
         elem = self._add_elem('layer', path, **kwargs, src=new_filename)
         obj = Layer(image, self, self._get_parent_from_path(path), elem, path)
-        obj._parent._add_child(obj)
 
         self.children.append(obj)
         self._children_paths[path] = obj
@@ -613,7 +605,6 @@ class Project:
     def _add_group(self, path, **kwargs):
         elem = self._add_elem('stack', path, **kwargs)
         obj = Group(self, self._get_parent_from_path(path), elem, path)
-        obj._parent._add_child(obj)
 
         if not 'isolation' in kwargs:
             kwargs['isolation'] = 'isolate'
