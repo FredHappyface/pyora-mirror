@@ -10,7 +10,7 @@ import xml.etree.cElementTree as ET
 from io import BytesIO
 from pyora.Render import Renderer, make_thumbnail
 from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
-
+import re
 
 class OpenRasterItemBase:
 
@@ -564,6 +564,13 @@ class Project:
         if not parent_path:
             return self._root_group
         return self._children_paths[parent_path]
+
+    def _split_path_index(self, path):
+        """
+        Get tuple of (path, index) from indexed path
+        """
+        found = re.findall(r'(.*)\[(\d+)\]', path)
+        return found[0] if found else (path, 1)
 
     def _add_elem(self, tag, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
                   **kwargs):
