@@ -744,7 +744,8 @@ class Project:
         if self._extracted_merged_image and use_original:
             return self._extracted_merged_image
 
-        return make_merged_image(self)
+        r = Renderer(self)
+        return r.render()
 
     def get_thumbnail_image_data(self, use_original=False):
         """
@@ -756,7 +757,8 @@ class Project:
         if self._extracted_merged_image and use_original:
             return make_thumbnail(self._extracted_merged_image)
 
-        return make_thumbnail(make_merged_image(self))
+        r = Renderer(self)
+        return make_thumbnail(r.render())
 
 
 
