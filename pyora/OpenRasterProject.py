@@ -9,344 +9,9 @@ import os
 import xml.etree.cElementTree as ET
 from io import BytesIO
 from pyora.Render import Renderer, make_thumbnail
+from pyora.Layer import Layer, Group
 from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
 import re
-
-class OpenRasterItemBase:
-
-    def __init__(self, project, parent, elem, path, _type):
-        self._elem = elem
-        self._parent = parent
-        self._type = _type
-        self._path = path
-        self._project = project
-
-    def __setitem__(self, key, value):
-        """
-        Set an arbitrary attribute on the underlying xml element
-        """
-        self._elem.set(key, value)
-
-    def __contains__(self, item):
-        return item in self._elem.attrib
-
-    def __getitem__(self, item):
-        return self._elem.attrib[item]
-
-    @property
-    def type(self):
-        """
-        :return
-        """
-        return self._type
-
-    @property
-    def parent(self):
-        """
-        Get the group object for the parent of this layer or group
-        :return:
-        """
-        return self._parent
-
-    @property
-    def is_group(self):
-        return self.type == TYPE_GROUP
-
-    @property
-    def uuid(self):
-        """
-        :return: str - the layer uuid
-        """
-        return self._elem.attrib.get('uuid', None)
-
-    @uuid.setter
-    def uuid(self, value):
-        self._project._children_uuids[str(value)] = self
-        self._elem.set('uuid', str(value))
-
-    @property
-    def name(self):
-        """
-        :return: str - the layer name
-        """
-        return self._elem.attrib.get('name', None)
-
-    @name.setter
-    def name(self, value):
-
-        self._elem.set('name', str(value))
-
-    @property
-    def path(self):
-        """
-        :return: str - the layer path
-        """
-        return self._path
-
-    @property
-    def z_index(self):
-        """
-        Get the stacking position of the layer, relative to the group it is in (or the root group).
-        Higher numbers are 'on top' of lower numbers. The lowest value is 1.
-        :return: int - the z_index of the layer
-        """
-        return list(reversed(self._parent._elem.getchildren())).index(self._elem) + 1
-
-    @z_index.setter
-    def z_index(self, new_z_index):
-        """
-        Reposition this layer inside of this group. (Uses 'relative' z_index)
-        As with most z_index, 1 is the lowest value (painted first)
-        :param new_z_index:
-        :return:
-        """
-
-
-    @property
-    def visible(self):
-        """
-        :return: bool - is the layer visible
-        """
-        return self._elem.attrib.get('visibility', 'visible') == 'visible'
-
-    @visible.setter
-    def visible(self, value):
-        self._elem.set('visibility', 'visible' if value else 'hidden')
-
-    @property
-    def hidden(self):
-        """
-        :return: bool - is the layer hidden
-        """
-        return not self.visible
-
-    @hidden.setter
-    def hidden(self, value):
-        self._elem.set('visibility', 'hidden' if value else 'visible')
-
-    @property
-    def opacity(self):
-        """
-        :return: float 0.0 - 1.0 defining opacity
-        """
-        try:
-            return float(self._elem.attrib.get('opacity', '1'))
-        except:
-            print(f"Malformed value for opacity {self}, defaulting to 1.0")
-            return 1.0
-
-    @opacity.setter
-    def opacity(self, value):
-        self._elem.set('opacity', str(float(value)))
-
-    @property
-    def offsets(self):
-        """
-        :return: (left, top) starting coordinates of the top left corner of the png data on the canvas
-        """
-        try:
-            return int(self._elem.attrib.get('x', '0')), int(self._elem.attrib.get('y', '0'))
-        except:
-            print(f"Malformed value for offsets {self}, defaulting to 0, 0")
-            return 0, 0
-
-    @offsets.setter
-    def offsets(self, value):
-        self._elem.set('x', str(value[0]))
-        self._elem.set('y', str(value[1]))
-
-    @property
-    def dimensions(self):
-        """
-        Not a supported ORA spec metadata, but we can read the specific PNG data to obtain the dimension value
-        :return: (width, height) tuple of dimensions based on the content rect
-        """
-        raise NotImplementedError()
-
-    @property
-    def bounding_rect(self):
-        """
-        Not a supported ORA spec metadata, but we can read the specific PNG data to obtain the dimension value
-        :return: (left, top, right, bottom) tuple of content rect
-        """
-        raise NotImplementedError()
-
-    @property
-    def raw_attributes(self):
-        """
-        Get a dict of key:value pairs of xml attributes for the element defining this object
-        Useful if something is not yet defined as a method in this library
-        :return: dict of attributes
-        """
-        return self._elem.attrib
-
-    @property
-    def composite_op(self):
-        """
-        :return: string of composite operation intended for the layer / group
-        """
-        return self._elem.attrib.get('composite-op', None)
-
-    @composite_op.setter
-    def composite_op(self, value):
-        self._elem.set('composite-op', str(value))
-
-class Group(OpenRasterItemBase):
-    def __init__(self, project, parent, elem, path):
-
-        super().__init__(project, parent, elem, path, TYPE_GROUP)
-
-        self._layers = []
-        self._layers_names = {}
-        self._layers_uuids = {}
-
-        self._groups = []
-        self._groups_names = {}
-        self._groups_uuids = {}
-
-        self._children = []
-        self._children_names = {}
-        self._children_uuids = {}
-
-    def __iter__(self):
-        yield from self.children
-
-    def __repr__(self):
-        return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
-
-    @property
-    def isolated(self):
-        """
-        :return: bool - is the layer rendered isolated
-        """
-        return self._elem.attrib.get('isolation', 'auto') == 'isolate'
-
-    @isolated.setter
-    def isolated(self, value):
-        """
-        Set the isolation rendering property of this group.
-        By default, groups are isolated, which means that composite and blending will be performed as if
-        the group was over a blank background. Other layers painted below the group are not composited/blended with
-        (until the whole group is done rendering by itself, at which point it is composited/blended with its own
-        composite-op attribute to the painted canvas below it) If isolation is turned off, the base background will
-        be the current canvas already painted, instead of a blank canvas.
-        To comply with ORA spec, the isolation property is ignored (and groups are forced to be rendered isolated)
-        if either (1) their opacity is less than 1.0 or (2) they use a composite-op other than 'svg:src-over'
-        :param value:
-        :return:
-        """
-        self._elem.set('isolation', 'isolate' if value else 'auto')
-
-    @OpenRasterItemBase.name.setter
-    def name(self, value):
-
-        old_path = self._path
-        parts = self._path.split('/')
-        parts[-1] = value
-        self._path = '/'.join(parts)
-
-        # in this case we also need to go through all the other paths that involved this group and replace them
-        for _path in self._project._children_paths:
-            if _path.startswith(old_path):
-                _new_path = _path.replace(old_path, self._path, 1)
-                self._project._children_paths[_new_path] = self._project._children_paths.pop(_path)
-
-        self._elem.set('name', str(value))
-
-    @property
-    def children(self):
-        for _child in self._project.children:
-            if _child.path.startswith(self.path + '/'):
-                yield _child
-
-    @property
-    def paths(self):
-        for _path in self._project._children_paths:
-            if _path.startswith(self.path + '/'):
-                yield _path
-
-    @property
-    def uuids(self):
-        return self._children_uuids
-
-    def get_image_data(self, raw=False):
-        """
-        Get a PIL Image() object of the group (composed of all underlying layers).
-        By default the returned image will always be the same dimension as the project canvas, and the original
-        image data will be placed / cropped inside of that.
-        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
-        :return: PIL Image()
-        """
-        raise NotImplementedError()
-
-
-class Layer(OpenRasterItemBase):
-
-    def __init__(self, image, project, parent, elem, path):
-
-        super().__init__(project, parent, elem, path, TYPE_LAYER)
-
-        self.image = image
-
-    def __repr__(self):
-        return f'<OpenRaster Layer "{self.name}" ({self.uuid})>'
-
-    @OpenRasterItemBase.name.setter
-    def name(self, value):
-
-        # need to update stored paths in parent
-        old_path = self._path
-        parts = self._path.split('/')
-        parts[-1] = value
-        self._path = '/'.join(parts)
-        self._project._children_paths[self._path] = self._project._children_paths.pop(old_path)
-
-        self._elem.set('name', str(value))
-
-    def _set_image_data(self, image):
-        self.image = image
-
-    def set_image_data(self, image):
-        """
-        Change the image data for this layer
-        :param image: pil Image() object of the new layer
-        :return: None
-        """
-        self._set_image_data(image)
-
-    def get_image_data(self, raw=False):
-        """
-        Get a PIL Image() object of the layer.
-        By default the returned image will always be the same dimension as the project canvas, and the original
-        image data will be placed / cropped inside of that.
-        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
-        :return: PIL Image()
-        """
-
-
-        _layerData = self.image
-
-        if raw:
-            return _layerData
-        dims = self._project.dimensions
-        canvas = Image.new('RGBA', (dims[0], dims[1]))
-        canvas.paste(_layerData, self.offsets)
-
-        return canvas
-
-    @property
-    def z_index_global(self):
-        """
-        Get the stacking position of the layer, relative to the entire canvas.
-        Higher numbers are 'on top' of lower numbers. The lowest value is 1.
-        :return: int - the z_index of the layer
-        """
-        for i, layer in enumerate(self._project, 1):
-            if layer == self:
-                return i
-        assert False  # should never not find a latching layer...
-
-
 
 
 class Project:
@@ -357,6 +22,7 @@ class Project:
         self._children_elems = {}
         self._children_uuids = {}
         self._extracted_merged_image = None
+        self._filename_counter = 0
 
 
     def __iter__(self):
@@ -368,12 +34,23 @@ class Project:
         return self.__iter__()
 
     @property
-    def iter_groups(self):
+    def layers_ordered(self):
+        return self.__iter__()
+
+    @property
+    def groups_ordered(self):
         for group in reversed(self._elem_root.findall('.//stack')):
             if group == self._root_group._elem:
                 yield self._root_group
             else:
                 yield self._children_elems[group]
+
+    @property
+    def layers_and_groups_ordered(self):
+        for group in self.groups_ordered:
+            yield group
+            for layer in reversed(group._elem.findall('layer')):
+                yield self._children_elems[layer]
 
     def _zip_store_image(self, zipref, path, image):
         imgByteArr = io.BytesIO()
@@ -480,12 +157,12 @@ class Project:
 
                     cur_path = basepath + '/' + child_elem.attrib['name']
                     if child_elem.tag == 'stack':
-                        _new = Group(self, parent, child_elem, cur_path)
+                        _new = Group(self, child_elem, cur_path)
                         _build_tree(_new, cur_path)
                     elif child_elem.tag == 'layer':
                         with zipref.open(child_elem.attrib['src']) as layerFile:
                             image = Image.open(layerFile)
-                        _new = Layer(image, self, parent, child_elem, cur_path)
+                        _new = Layer(image, self, child_elem, cur_path)
                     else:
                         print(f"Warning: unknown tag in stack: {child_elem.tag}")
                         continue
@@ -496,7 +173,7 @@ class Project:
                     self._children_elems[child_elem] = _new
                     self._children_uuids[_new.uuid] = _new
 
-            self._root_group = Group(self, None, self._elem, '/')
+            self._root_group = Group(self, self._elem, '/')
             _build_tree(self._root_group, '')
 
 
@@ -521,7 +198,7 @@ class Project:
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
                                         f'visibility="visible"></stack></image>')
         self._elem = self._elem_root[0]
-        self._root_group = Group(self, None, self._elem, '/')
+        self._root_group = Group(self, self._elem, '/')
         self._extracted_merged_image = None
 
     def save(self, path_or_file, composite_image=None, use_original=False):
@@ -587,12 +264,13 @@ class Project:
     def _add_layer(self, image, path, **kwargs):
         # generate some unique filename
         # we follow Krita's standard of just 'layer%d' type format
-        index = len([x for x in self.children if x.type == TYPE_LAYER])
-        new_filename = f'/data/layer{index}.png'
+        #index = len([x for x in self.children if x.type == TYPE_LAYER])
+        new_filename = f'/data/layer{self._filename_counter}.png'
+        self._filename_counter += 1;
 
         # add xml element
         elem = self._add_elem('layer', path, **kwargs, src=new_filename)
-        obj = Layer(image, self, self._get_parent_from_path(path), elem, path)
+        obj = Layer(image, self, elem, path)
 
         self.children.append(obj)
         self._children_paths[path] = obj
@@ -611,7 +289,7 @@ class Project:
 
     def _add_group(self, path, **kwargs):
         elem = self._add_elem('stack', path, **kwargs)
-        obj = Group(self, self._get_parent_from_path(path), elem, path)
+        obj = Group(self, elem, path)
 
         if not 'isolation' in kwargs:
             kwargs['isolation'] = 'isolate'
@@ -622,7 +300,14 @@ class Project:
         self._children_uuids[obj.uuid] = obj
         return obj
 
-    def _make_groups_recursively(self, path):
+    def _make_groups_recursively(self, path, as_group=True):
+        """
+        Create groups, kind of like $ mkdir -p
+        :param path: absolute path
+        :param as_group: if true, assume abspath(path) should be a layer, and don't make it. If False, make the
+        whole path.
+        :return:
+        """
 
         # absolute path slash is for styling/consistency only, remove it if exists
         if path[0] == '/':
@@ -631,10 +316,12 @@ class Project:
         # determine if the required group exists yet
         # and add all required groups to make the needed path
         parts = path.split('/')
-        parent_path = '/'.join(parts[:-1])
+        parent_path = '/'.join(parts[:-(1 if as_group else 0)])
+
         if not parent_path in self._children_paths:
-            for i, _parent_name in enumerate(parts[1:], 1):
+            for i, _parent_name in enumerate(parts[(1 if as_group else 0):], 1):
                 _sub_parent_path = '/' + '/'.join(parts[:i])
+                print(_sub_parent_path)
                 if not _sub_parent_path in self._children_paths:
                     # make new empty group
                     self._add_group(_sub_parent_path, isolation='isolate')
@@ -691,6 +378,87 @@ class Project:
         return self._add_group(path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
                         composite_op=composite_op, uuid=uuid, **kwargs)
 
+    def remove(self, path=None, uuid=None):
+        """
+        Remove some layer or group and all of its children from the project
+        :param path:
+        :param uuid:
+        :return:
+        """
+        if not path[0] == '/':
+            path = '/' + path
+
+        if path:
+            root_child = self[path]
+        else:
+            root_child = self.get_by_uuid(uuid)
+
+        # this removes all of the python references
+        children_to_remove = []
+        for _path in self._children_paths:
+            if _path == root_child.path:
+                # remove XML elementtree reference
+                parent_elem = self._get_parent_from_path(_path)._elem
+                parent_elem.remove(self._children_paths[_path]._elem)
+            if _path.startswith(root_child.path):
+                children_to_remove.append(self._children_paths[_path])
+
+        for child in children_to_remove:
+            del self._children_elems[child._elem]
+            del self._children_paths[child.path]
+            if child.uuid:
+                del self._children_uuids[child.uuid]
+            self._children.remove(child)
+
+    def move(self, path=None, uuid=None, dest_path=None, dest_uuid=None, dest_z_index=1):
+        """
+        Move some layer or group and all of its children somewhere else inside the project
+        If there are some layer groups that are missing for the destination to exist, they
+        will be created automatically.
+        :param path: source group/layer path to move
+        :param uuid: source group/layer uuid to move
+        :param dest_path: dest group path to place source element inside of
+        :param dest_path: dest group uuid to place source element inside of
+        :param dest_z_index: inside of the destination group, place the moved layer/group at this index
+        :return: None
+        """
+
+        # just find all the individual elements below the selected one by path and add them all
+        # iteratively. Less efficient for now but I don't think anyone is keeping track.
+
+        # or: better solution: just find all of the paths that are below, and change their project
+        # child_paths entry with the path replacement and
+
+        if not path[0] == '/':
+            path = '/' + path
+
+        if path:
+            root_child = self[path]
+        else:
+            root_child = self.get_by_uuid(uuid)
+
+        if dest_uuid:
+            dest_path = self.get_by_uuid(uuid).path
+
+        self._make_groups_recursively(dest_path, as_group=False)
+
+        move_paths = []
+        for _path in self._children_paths:
+            if _path == root_child.path:
+                # move element in the XML object repr
+                old_parent_elem = self._get_parent_from_path(_path)._elem
+                new_parent_elem = self._children_paths[dest_path]._elem
+                old_parent_elem.remove(root_child._elem)
+                new_parent_elem.insert(dest_z_index-1, root_child._elem)
+
+            if _path.startswith(root_child.path):
+                move_paths.append(_path)
+
+        for _path in move_paths:
+
+            full_dest_path = _path.replace(root_child.path, dest_path + ('' if dest_path[-1] == '/' else '/')  + root_child.name, 1)
+            self._children_paths[full_dest_path] = self._children_paths.pop(_path)
+            self._children_paths[full_dest_path]._path = full_dest_path
 
     @property
     def dimensions(self):
