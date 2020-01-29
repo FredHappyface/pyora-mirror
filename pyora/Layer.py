@@ -202,18 +202,6 @@ class Group(OpenRasterItemBase):
 
         super().__init__(project, elem, path, TYPE_GROUP)
 
-        self._layers = []
-        self._layers_names = {}
-        self._layers_uuids = {}
-
-        self._groups = []
-        self._groups_names = {}
-        self._groups_uuids = {}
-
-        self._children = []
-        self._children_names = {}
-        self._children_uuids = {}
-
     def __iter__(self):
         yield from self.children
 
@@ -261,19 +249,50 @@ class Group(OpenRasterItemBase):
 
     @property
     def children(self):
+        """
+        Returns all layers and groups under this group
+        """
         for _child in self._project.children:
             if _child.path.startswith(self.path + '/'):
                 yield _child
 
     @property
     def paths(self):
+        """
+        Returns the paths to all layers and groups under this group
+        """
         for _path in self._project._children_paths:
             if _path.startswith(self.path + '/'):
                 yield _path
 
     @property
     def uuids(self):
-        return self._children_uuids
+        """
+        Returns the uuids belonging to all layers and groups under this group
+        """
+        for _path in self._project._children_paths:
+            if _path.startswith(self.path + '/'):
+                yield self._project[_path].uuid
+
+    @property
+    def groups(self):
+        """
+        Returns the group objects under this group
+        """
+        for _path in self._project._children_paths:
+            if _path.startswith(self.path + '/') and self._project[_path].type == TYPE_GROUP:
+                yield self._project[_path].uuid
+
+    @property
+    def layers(self):
+        """
+        Returns the layer objects under this group
+        """
+        for _path in self._project._children_paths:
+            if _path.startswith(self.path + '/') and self._project[_path].type == TYPE_LAYER:
+                yield self._project[_path].uuid
+
+
 
     def get_image_data(self, raw=False):
         """
