@@ -147,7 +147,7 @@ class Renderer:
         canvas = backdrop
 
         for i, layer in enumerate(layers):
-            layer_data = self.pil2np(layer.get_image_data(raw=True).convert('RGBA'))
+            layer_data = self.pil2np(layer.get_image_data(raw=True))
             canvas = self._render_two(canvas, layer_data, layer)
 
         return canvas

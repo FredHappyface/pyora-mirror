@@ -161,7 +161,7 @@ class Project:
                         _build_tree(_new, cur_path)
                     elif child_elem.tag == 'layer':
                         with zipref.open(child_elem.attrib['src']) as layerFile:
-                            image = Image.open(layerFile)
+                            image = Image.open(layerFile).convert('RGBA')
                         _new = Layer(image, self, child_elem, cur_path)
                     else:
                         print(f"Warning: unknown tag in stack: {child_elem.tag}")
