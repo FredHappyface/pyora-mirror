@@ -321,7 +321,6 @@ class Project:
         if not parent_path in self._children_paths:
             for i, _parent_name in enumerate(parts[(1 if as_group else 0):], 1):
                 _sub_parent_path = '/' + '/'.join(parts[:i])
-                print(_sub_parent_path)
                 if not _sub_parent_path in self._children_paths:
                     # make new empty group
                     self._add_group(_sub_parent_path, isolation='isolate')

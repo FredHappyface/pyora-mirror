@@ -106,7 +106,7 @@ class Renderer:
         if layer.composite_op in blend_modes:
             _tmp_layer_data = blend_modes[layer.composite_op](layer_data,
                                                               backdrop,
-                                                              1.0, layer.offsets)
+                                                              layer.offsets)
             canvas = normal(
                 _tmp_layer_data,
                 backdrop,

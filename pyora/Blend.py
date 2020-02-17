@@ -13,6 +13,7 @@ def _compose_alpha(source, destination, opacity, window=None):
     ratio = comp_alpha / new_alpha
     ratio[ratio == np.NAN] = 0.0
 
+
     # make sure to get a full mask on parts of the image which are not part of both source and backdrop
     if window:
         mask = np.ones_like(ratio, dtype=bool)
@@ -85,8 +86,13 @@ def normal(source, destination, opacity, offsets=(0, 0)):
     return c_out * 255.0
 
 
-def soft_light(source, destination, opacity, offsets=(0, 0)):
-    """Apply soft light blending mode of a layer on an image.
+def _old_blend_mode(source, destination, opacity, offsets=(0, 0)):
+    """
+    Preserved implementation of the blend mode, there opacity of the blend mode actually also mixed
+    the colors of the blended mode and the backdrop.
+
+    In current ORA standard, porter-duff blend modes are used, which do not mix the post-blended
+    layer with the backdrop. However, this might be an option at some point in the future.
     """
     source = reshape_dest(source, destination, offsets)
 
@@ -95,25 +101,7 @@ def soft_light(source, destination, opacity, offsets=(0, 0)):
 
     ratio = _compose_alpha(destination_norm, source_norm, opacity)
 
-    comp = (1.0 - destination_norm[:, :, :3]) * destination_norm[:, :, :3] * source_norm[:, :, :3] \
-           + destination_norm[:, :, :3] * (1.0 - (1.0 - destination_norm[:, :, :3]) * (1.0 - source_norm[:, :, :3]))
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def lighten_only(source, destination, opacity, offsets=(0, 0)):
-    """Apply lighten only blending mode of a layer on an image.
-    """
-    source = reshape_dest(source, destination, offsets)
-
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
-
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
-
+    # 'comp' is the actual blend mode
     comp = np.maximum(destination_norm[:, :, :3], source_norm[:, :, :3])
 
     ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
@@ -121,250 +109,165 @@ def lighten_only(source, destination, opacity, offsets=(0, 0)):
     img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
     return img_out * 255.0
 
+def _general_blend(source, destination, offsets, comp_func):
+    source = reshape_dest(source, destination, offsets)
 
-def screen(source, destination, opacity, offsets=(0, 0)):
+    destination_norm = destination / 255.0
+    source_norm = source / 255.0
+
+    comp = comp_func(destination_norm, source_norm)
+
+    idxs = destination_norm[:, :, 3] == 0
+
+    ratio_rs = np.reshape(np.repeat(idxs, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
+    img_out = comp + (source_norm[:, :, :3] * ratio_rs)
+    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
+
+    return img_out * 255.0
+
+
+
+def soft_light(source, destination, offsets=(0, 0)):
+    """Apply soft light blending mode of a layer on an image.
+    """
+    def comp_func(destination_norm, source_norm):
+        return (1.0 - destination_norm[:, :, :3]) * destination_norm[:, :, :3] * source_norm[:, :, :3] \
+           + destination_norm[:, :, :3] * (1.0 - (1.0 - destination_norm[:, :, :3]) * (1.0 - source_norm[:, :, :3]))
+
+    return _general_blend(source, destination, offsets, comp_func)
+
+
+def lighten_only(source, destination, offsets=(0, 0)):
+    """Apply lighten only blending mode of a layer on an image.
+    """
+
+    def comp_func(destination_norm, source_norm):
+        return np.maximum(destination_norm[:, :, :3], source_norm[:, :, :3])
+
+    return _general_blend(source, destination, offsets, comp_func)
+
+def screen(source, destination, offsets=(0, 0)):
     """Apply screen blending mode of a layer on an image.
 
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return 1.0 - (1.0 - destination_norm[:, :, :3]) * (1.0 - source_norm[:, :, :3])
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = 1.0 - (1.0 - destination_norm[:, :, :3]) * (1.0 - source_norm[:, :, :3])
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def dodge(source, destination, opacity, offsets=(0, 0)):
+def dodge(source, destination, offsets=(0, 0)):
     """Apply dodge blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return np.minimum(destination_norm[:, :, :3] / ((1.0 + np.finfo(np.float64).eps) - source_norm[:, :, :3]), 1.0)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = np.minimum(destination_norm[:, :, :3] / ((1.0 + np.finfo(np.float64).eps) - source_norm[:, :, :3]), 1.0)
-
-
-    ratio_rs = np.nan_to_num(np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]]))
-
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-
-    return img_out * 255.0
-
-def burn(source, destination, opacity, offsets=(0, 0)):
+def burn(source, destination, offsets=(0, 0)):
     """Apply burn blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
+    def comp_func(destination_norm, source_norm):
+        return np.maximum(1.0 - (((1.0 + np.finfo(np.float64).eps) - destination_norm[:, :, :3]) / source_norm[:, :, :3]), 0.0)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    return _general_blend(source, destination, offsets, comp_func)
 
-
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
-
-    # in : botton  , layer: top
-    comp = np.maximum(1.0 - (((1.0 + np.finfo(np.float64).eps) - destination_norm[:, :, :3]) / source_norm[:, :, :3]), 0.0)
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-
-    return img_out * 255.0
-
-def addition(source, destination, opacity, offsets=(0, 0)):
+def addition(source, destination, offsets=(0, 0)):
     """Apply addition blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return destination_norm[:, :, :3] + source_norm[:, :, :3]
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = destination_norm[:, :, :3] + source_norm[:, :, :3]
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def darken_only(source, destination, opacity, offsets=(0, 0)):
+def darken_only(source, destination, offsets=(0, 0)):
     """Apply darken only blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return np.minimum(destination_norm[:, :, :3], source_norm[:, :, :3])
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = np.minimum(destination_norm[:, :, :3], source_norm[:, :, :3])
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def multiply(source, destination, opacity, offsets=(0, 0)):
+def multiply(source, destination, offsets=(0, 0)):
     """Apply multiply blending mode of a layer on an image.
     """
 
-    source = reshape_dest(source, destination, offsets)
+    def comp_func(destination_norm, source_norm):
+        return np.clip(source_norm[:, :, :3] * destination_norm[:, :, :3], 0.0, 1.0)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    return _general_blend(source, destination, offsets, comp_func)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
-
-    comp = np.clip(source_norm[:, :, :3] * destination_norm[:, :, :3], 0.0, 1.0)
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def hard_light(source, destination, opacity, offsets=(0, 0)):
+def hard_light(source, destination, offsets=(0, 0)):
     """Apply hard light blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
-
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
-
-    comp = np.greater(source_norm[:, :, :3], 0.5) \
+    def comp_func(destination_norm, source_norm):
+        return np.greater(source_norm[:, :, :3], 0.5) \
            * np.minimum(1.0 - ((1.0 - destination_norm[:, :, :3])
                                * (1.0 - (source_norm[:, :, :3] - 0.5) * 2.0)), 1.0) \
            + np.logical_not(np.greater(source_norm[:, :, :3], 0.5)) \
            * np.minimum(destination_norm[:, :, :3] * (source_norm[:, :, :3] * 2.0), 1.0)
 
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
+    return _general_blend(source, destination, offsets, comp_func)
 
-
-def difference(source, destination, opacity, offsets=(0, 0)):
+def difference(source, destination, offsets=(0, 0)):
     """Apply difference blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        comp = destination_norm[:, :, :3] - source_norm[:, :, :3]
+        comp[comp < 0.0] *= -1.0
+        return comp
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = destination_norm[:, :, :3] - source_norm[:, :, :3]
-    comp[comp < 0.0] *= -1.0
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def subtract(source, destination, opacity, offsets=(0, 0)):
+def subtract(source, destination, offsets=(0, 0)):
     """Apply subtract blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return destination[:, :, :3] - source_norm[:, :, :3]
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = destination[:, :, :3] - source_norm[:, :, :3]
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def grain_extract(source, destination, opacity, offsets=(0, 0)):
+def grain_extract(source, destination, offsets=(0, 0)):
     """Apply grain extract blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return np.clip(destination_norm[:, :, :3] - source_norm[:, :, :3] + 0.5, 0.0, 1.0)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = np.clip(destination_norm[:, :, :3] - source_norm[:, :, :3] + 0.5, 0.0, 1.0)
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def grain_merge(source, destination, opacity, offsets=(0, 0)):
+def grain_merge(source, destination, offsets=(0, 0)):
     """Apply grain merge blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return np.clip(destination_norm[:, :, :3] + source_norm[:, :, :3] - 0.5, 0.0, 1.0)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = np.clip(destination_norm[:, :, :3] + source_norm[:, :, :3] - 0.5, 0.0, 1.0)
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def divide(source, destination, opacity, offsets=(0, 0)):
+def divide(source, destination, offsets=(0, 0)):
     """Apply divide blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
+    def comp_func(destination_norm, source_norm):
+        return np.minimum((256.0 / 255.0 * destination_norm[:, :, :3]) / (1.0 / 255.0 + source_norm[:, :, :3]), 1.0)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    return _general_blend(source, destination, offsets, comp_func)
 
-    comp = np.minimum((256.0 / 255.0 * destination_norm[:, :, :3]) / (1.0 / 255.0 + source_norm[:, :, :3]), 1.0)
-
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
-
-
-def overlay(source, destination, opacity, offsets=(0, 0)):
+def overlay(source, destination,  offsets=(0, 0)):
     """Apply overlay blending mode of a layer on an image.
     """
-    source = reshape_dest(source, destination, offsets)
 
-    destination_norm = destination / 255.0
-    source_norm = source / 255.0
-
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
-
-    comp = np.less(destination_norm[:, :, :3], 0.5) * (2 * destination_norm[:, :, :3] * source_norm[:, :, :3]) \
+    def comp_func(destination_norm, source_norm):
+        return np.less(destination_norm[:, :, :3], 0.5) * (2 * destination_norm[:, :, :3] * source_norm[:, :, :3]) \
            + np.greater_equal(destination_norm[:, :, :3], 0.5) \
            * (1 - (2 * (1 - destination_norm[:, :, :3]) * (1 - source_norm[:, :, :3])))
 
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
-    img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
-    return img_out * 255.0
+    return _general_blend(source, destination, offsets, comp_func)

@@ -1,5 +1,5 @@
 import numpy as np
-from pyora.Blend import reshape_dest, _compose_alpha
+from pyora.Blend import reshape_dest
 
 """
 Implementation of the non-separable blending modes as described in 
@@ -150,7 +150,15 @@ def _setSat(c_orig, s):
     return _c
 
 
-def _general_blend(source, destination, opacity, offsets, blend_func):
+import math
+
+
+def _general_blend(source, destination, offsets, blend_func):
+    """
+    This function is slightly different than the one in the blend module, because the inside functions do not use the
+    alpha channel.
+    """
+
     source = reshape_dest(source, destination, offsets)
 
     destination_norm = destination / 255.0
@@ -161,21 +169,21 @@ def _general_blend(source, destination, opacity, offsets, blend_func):
 
     comp = blend_func(Cs, Cb)
 
-    ratio = _compose_alpha(destination_norm, source_norm, opacity)
+    # new algo, we apply the blend_func everywhere, except where dest does not exist, at all
+    # (where it does not exist, we just put src)
+    idxs = destination_norm[:, :, 3] == 0
 
-    ratio_rs = np.reshape(np.repeat(ratio, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
-    img_out = comp * ratio_rs + source_norm[:, :, :3] * (1.0 - ratio_rs)
+    ratio_rs = np.reshape(np.repeat(idxs, 3), [comp.shape[0], comp.shape[1], comp.shape[2]])
+    img_out = comp + (source_norm[:, :, :3] * ratio_rs)
     img_out = np.nan_to_num(np.dstack((img_out, source_norm[:, :, 3])))  # add alpha channel and replace nans
 
     return img_out * 255.0
-
-import math
 
 def _colourCompositingFormula(_as, ab, ar, Cs, Cb, Bbs):
     return (1 - (_as / ar)) * Cb + (_as / ar) * math.floor((1 - ab) * Cs + ab * Bbs)
 
 
-def hue(source, destination, opacity, offsets=(0, 0)):
+def hue(source, destination, offsets=(0, 0)):
     """
 
     Creates a color with the hue of the source color and the saturation and luminosity of the backdrop color.
@@ -185,10 +193,10 @@ def hue(source, destination, opacity, offsets=(0, 0)):
     def _blend_func(Cs, Cb):
         return _setLum(_setSat(Cs, _sat(Cb)), _lum(Cb))
 
-    return _general_blend(source, destination, opacity, offsets, _blend_func)
+    return _general_blend(source, destination, offsets, _blend_func)
 
 
-def saturation(source, destination, opacity, offsets=(0, 0)):
+def saturation(source, destination, offsets=(0, 0)):
     """
 
     Creates a color with the saturation of the source color and the hue and luminosity of the backdrop color.
@@ -198,9 +206,9 @@ def saturation(source, destination, opacity, offsets=(0, 0)):
     def _blend_func(Cs, Cb):
         return _setLum(_setSat(Cb, _sat(Cs)), _lum(Cb))
 
-    return _general_blend(source, destination, opacity, offsets, _blend_func)
+    return _general_blend(source, destination, offsets, _blend_func)
 
-def color(source, destination, opacity, offsets=(0, 0)):
+def color(source, destination, offsets=(0, 0)):
     """
 
     Creates a color with the hue and saturation of the source color and the luminosity of the backdrop color.
@@ -210,9 +218,9 @@ def color(source, destination, opacity, offsets=(0, 0)):
     def _blend_func(Cs, Cb):
         return _setLum(Cs, _lum(Cb))
 
-    return _general_blend(source, destination, opacity, offsets, _blend_func)
+    return _general_blend(source, destination, offsets, _blend_func)
 
-def luminosity(source, destination, opacity, offsets=(0, 0)):
+def luminosity(source, destination, offsets=(0, 0)):
     """
 
     Creates a color with the luminosity of the source color and the hue and saturation of the backdrop color.
@@ -222,4 +230,4 @@ def luminosity(source, destination, opacity, offsets=(0, 0)):
     def _blend_func(Cs, Cb):
         return _setLum(Cb, _lum(Cs))
 
-    return _general_blend(source, destination, opacity, offsets, _blend_func)
+    return _general_blend(source, destination, offsets, _blend_func)
