@@ -18,37 +18,105 @@ class Project:
 
     def __init__(self):
         self._children = []
-        self._children_paths = {}
         self._children_elems = {}
         self._children_uuids = {}
         self._extracted_merged_image = None
         self._filename_counter = 0
         self._generated_uuids = False
 
+    def get_by_path(self, path):
+        """
 
-    def __iter__(self):
+        :return:
+        """
+
+        if path == '/':
+            return self.root
+        if path.startswith('/'):
+            path = path.replace('/', '')
+
+        current_group = self._root_group
+        for name in path.split('/'):
+            found = False
+            for child in current_group.children:
+                if child.name == name:
+                    current_group = child
+                    found = True
+                    break
+
+            if not found:
+                raise Exception(f"Layer with path {path} was not found")
+
+        return current_group
+
+    def get_by_uuid(self, uuid):
+        return self._children_uuids[uuid]
+
+    def _parentNode(self, elem):
+        """
+        Get the parent node of elem, based on ElementTree Limitations
+        """
+        uuid = elem.attrib['uuid']
+        return self._elem_root.find(f'.//*[@uuid="{uuid}"]...')
+
+    @property
+    def children_recursive(self):
+        return self._children
+
+    @property
+    def children(self):
+        children = []
+        for _child in self._root_group._elem:
+            children.append(self.get_by_uuid(_child.attrib['uuid']))
+
+        return children
+
+    @property
+    def root(self):
+        """
+        Get a reference to the outermost layer group containing everything else
+        :return: Group() Object
+        """
+        return self._root_group
+
+    @property
+    def uuids(self):
+        return self._children_uuids
+
+    @property
+    def iter_layers(self):
         for layer in reversed(self._elem_root.findall('.//layer')):
             yield self._children_elems[layer]
 
     @property
-    def iter_layers(self):
-        return self.__iter__()
-
-    @property
-    def layers_ordered(self):
-        return self.__iter__()
-
-    @property
-    def groups_ordered(self):
+    def iter_groups(self):
         for group in reversed(self._elem_root.findall('.//stack')):
             if group == self._root_group._elem:
                 yield self._root_group
             else:
                 yield self._children_elems[group]
 
+    def __iter__(self):
+        """
+        Same as .children
+        :return:
+        """
+        return self.iter_layers
+
+
+    def __contains__(self, path):
+        try:
+            self.get_by_path(path)
+        except:
+            return False
+        return True
+
+    def __getitem__(self, path):
+        return self.get_by_path(path)
+
     @property
     def layers_and_groups_ordered(self):
-        for group in self.groups_ordered:
+        for group in self.iter_groups:
             yield group
             for layer in reversed(group._elem.findall('layer')):
                 yield self._children_elems[layer]
@@ -136,7 +204,6 @@ class Project:
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
 
             self._children = []
-            self._children_paths = {}
             self._children_elems = {}
             self._children_uuids = {}
 
@@ -161,23 +228,22 @@ class Project:
 
                     cur_path = basepath + '/' + child_elem.attrib['name']
                     if child_elem.tag == 'stack':
-                        _new = Group(self, child_elem, cur_path)
+                        _new = Group(self, child_elem)
                         _build_tree(_new, cur_path)
                     elif child_elem.tag == 'layer':
                         with zipref.open(child_elem.attrib['src']) as layerFile:
                             image = Image.open(layerFile).convert('RGBA')
-                        _new = Layer(image, self, child_elem, cur_path)
+                        _new = Layer(image, self, child_elem)
                     else:
                         print(f"Warning: unknown tag in stack: {child_elem.tag}")
                         continue
 
                     self._children.append(_new)
 
-                    self._children_paths[cur_path] = _new
                     self._children_elems[child_elem] = _new
                     self._children_uuids[_new.uuid] = _new
 
-            self._root_group = Group(self, self._elem, '/')
+            self._root_group = Group(self, self._elem)
             _build_tree(self._root_group, '')
 
 
@@ -202,7 +268,7 @@ class Project:
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
                                         f'visibility="visible"></stack></image>')
         self._elem = self._elem_root[0]
-        self._root_group = Group(self, self._elem, '/')
+        self._root_group = Group(self, self._elem)
         self._extracted_merged_image = None
 
     def save(self, path_or_file, composite_image=None, use_original=False):
@@ -238,13 +304,18 @@ class Project:
                 if layer.type == TYPE_LAYER:
                     self._zip_store_image(zipref, layer['src'], layer.get_image_data())
 
-
-
     def _get_parent_from_path(self, path):
+
         parent_path = '/'.join(path.split('/')[:-1])
-        if not parent_path:
+
+        if parent_path == '':
             return self._root_group
-        return self._children_paths[parent_path]
+        
+        return self.get_by_path(parent_path)
+
+    def _insertElementAtIndex(self, parent, index, element):
+
+        parent.insert(index, element)
 
     def _split_path_index(self, path):
         """
@@ -253,16 +324,13 @@ class Project:
         found = re.findall(r'(.*)\[(\d+)\]', path)
         return found[0] if found else (path, 1)
 
-    def _add_elem(self, tag, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
+    def _add_elem(self, tag, parent_elem, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
                   **kwargs):
 
-        print(kwargs)
         if not 'uuid' in kwargs or kwargs['uuid'] is None:
             self._generated_uuids = True
             kwargs['uuid'] = str(uuid.uuid4())
 
-        parts = path.split('/')
-        name, parent_elem = parts[-1], self._get_parent_from_path(path)._elem
         new_elem = ET.Element(tag, {'name': name, 'x': str(offsets[0]), 'y': str(offsets[1]),
                                         'visibility': 'visible' if visible else 'hidden',
                                         'opacity': str(opacity), 'composite-op': composite_op,
@@ -270,51 +338,39 @@ class Project:
         parent_elem.insert(z_index - 1, new_elem)
         return new_elem
 
-    def _add_layer(self, image, path, **kwargs):
+    def _add_layer(self, image, parent_elem, name, **kwargs):
         # generate some unique filename
         # we follow Krita's standard of just 'layer%d' type format
         #index = len([x for x in self.children if x.type == TYPE_LAYER])
         new_filename = f'/data/layer{self._filename_counter}.png'
-        self._filename_counter += 1;
+        self._filename_counter += 1
 
         # add xml element
-        elem = self._add_elem('layer', path, **kwargs, src=new_filename)
-        obj = Layer(image, self, elem, path)
+        elem = self._add_elem('layer', parent_elem, name, **kwargs, src=new_filename)
+        obj = Layer(image, self, elem)
 
-        self.children.append(obj)
-        self._children_paths[path] = obj
+        self._children.append(obj)
         self._children_elems[elem] = obj
         self._children_uuids[obj.uuid] = obj
 
         return obj
 
-    # def delete_path(self, path):
-    #     item = self._children_paths[path]
-    #     del self._children_paths[path]
-    #     del self._children_elems[item._elem]
-    #     if item.uuid:
-    #         del self._children_uuids[item.uuid]
-    #     self.children.remove(item)
-
-    def _add_group(self, path, **kwargs):
-        elem = self._add_elem('stack', path, **kwargs)
-        obj = Group(self, elem, path)
+    def _add_group(self, parent_elem, name, **kwargs):
+        elem = self._add_elem('stack', parent_elem, name, **kwargs)
+        obj = Group(self, elem)
 
         if not 'isolation' in kwargs:
             kwargs['isolation'] = 'isolate'
 
-        self.children.append(obj)
-        self._children_paths[path] = obj
+        self._children.append(obj)
         self._children_elems[elem] = obj
         self._children_uuids[obj.uuid] = obj
         return obj
 
-    def _make_groups_recursively(self, path, as_group=True):
+    def _make_groups_recursively(self, path):
         """
-        Create groups, kind of like $ mkdir -p
-        :param path: absolute path
-        :param as_group: if true, assume abspath(path) should be a layer, and don't make it. If False, make the
-        whole path.
+        creates all of the groups which would be required UNDER the specified path (not the final, deepest path element)
+        as this works with paths it will just choose the first matching path if duplicate names are found
         :return:
         """
 
@@ -322,17 +378,20 @@ class Project:
         if path[0] == '/':
             path = path[1:]
 
-        # determine if the required group exists yet
-        # and add all required groups to make the needed path
+        # descend through potential groups, creating some if they don't exist
         parts = path.split('/')
-        parent_path = '/'.join(parts[:-(1 if as_group else 0)])
 
-        if not parent_path in self._children_paths:
-            for i, _parent_name in enumerate(parts[(1 if as_group else 0):], 1):
-                _sub_parent_path = '/' + '/'.join(parts[:i])
-                if not _sub_parent_path in self._children_paths:
-                    # make new empty group
-                    self._add_group(_sub_parent_path, isolation='isolate')
+        # remove the last, deepest part of the path, which we will not be creating
+        parts.pop()
+        current_group = self._root_group
+        while len(parts) > 0:
+            expected_name = parts.pop(0)
+            existing = [child for child in current_group.children if child.name == expected_name]
+            if len(existing) == 0:
+                # need to create this one
+                current_group = current_group.add_group(expected_name)
+            else:
+                current_group = existing[0]
 
     def add_layer(self, image, path=None, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, **kwargs):
@@ -356,8 +415,12 @@ class Project:
         if not path[0] == '/':
             path = '/' + path
 
+        parts = path.split('/')
+        name = parts[-1]
+        parent_elem = self._get_parent_from_path(path)._elem
+
         # make the new layer itself
-        return self._add_layer(image, path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
+        return self._add_layer(image, parent_elem, name, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
                         composite_op=composite_op, uuid=uuid, **kwargs)
 
     def add_group(self, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
@@ -382,91 +445,64 @@ class Project:
 
         kwargs['isolation'] = 'isolate' if isolated else 'auto'
 
+        parts = path.split('/')
+        name = parts[-1]
+        parent_elem = self._get_parent_from_path(path)._elem
+
         # make the new group itself
-        return self._add_group(path, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
+        return self._add_group(parent_elem, name, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
                         composite_op=composite_op, uuid=uuid, **kwargs)
 
-    def remove(self, path=None, uuid=None):
+    def remove(self, uuid):
         """
         Remove some layer or group and all of its children from the project
         :param path:
         :param uuid:
         :return:
         """
-        if not path[0] == '/':
-            path = '/' + path
+        
+        root_child = self.get_by_uuid(uuid)
 
-        if path:
-            root_child = self[path]
-        else:
-            root_child = self.get_by_uuid(uuid)
+        children_to_remove = [root_child]
+        if root_child.type == TYPE_GROUP:
+            children_to_remove = children_to_remove + root_child.children_recursive
 
-        # this removes all of the python references
-        children_to_remove = []
-        for _path in self._children_paths:
-            if _path == root_child.path:
-                # remove XML elementtree reference
-                parent_elem = self._get_parent_from_path(_path)._elem
-                parent_elem.remove(self._children_paths[_path]._elem)
-            if _path.startswith(root_child.path):
-                children_to_remove.append(self._children_paths[_path])
+        parent_elem = root_child.parent._elem
 
-        for child in children_to_remove:
-            del self._children_elems[child._elem]
-            del self._children_paths[child.path]
-            if child.uuid:
-                del self._children_uuids[child.uuid]
-            self._children.remove(child)
+        # remove all of the global references to uuids and elems
+        for _child in children_to_remove:
+            del self._children_elems[_child._elem]
+            if _child.uuid is not None:
+                del self._children_uuids[_child.uuid]
 
-    def move(self, path=None, uuid=None, dest_path=None, dest_uuid=None, dest_z_index=1):
+        # this should only have to be done for the parent for all of the other elements to be gone in the XML tree
+        parent_elem.removeChild(root_child._elem)
+        
+
+    def move(self, src_uuid, dst_uuid, dst_z_index=1):
         """
         Move some layer or group and all of its children somewhere else inside the project
         If there are some layer groups that are missing for the destination to exist, they
         will be created automatically.
-        :param path: source group/layer path to move
-        :param uuid: source group/layer uuid to move
-        :param dest_path: dest group path to place source element inside of
-        :param dest_path: dest group uuid to place source element inside of
+        
+        :param uuid: source group/layer uuid to move        
+        :param dest_uuid: dest group uuid to place source element inside of
         :param dest_z_index: inside of the destination group, place the moved layer/group at this index
         :return: None
         """
 
-        # just find all the individual elements below the selected one by path and add them all
-        # iteratively. Less efficient for now but I don't think anyone is keeping track.
-
-        # or: better solution: just find all of the paths that are below, and change their project
-        # child_paths entry with the path replacement and
-
-        if not path[0] == '/':
-            path = '/' + path
-
-        if path:
-            root_child = self[path]
+        if dst_uuid is None:
+            dest_parent = self._root_group
         else:
-            root_child = self.get_by_uuid(uuid)
+            dest_parent = self.get_by_uuid(dst_uuid)
 
-        if dest_uuid:
-            dest_path = self.get_by_uuid(uuid).path
+        child = self.get_by_uuid(src_uuid)
 
-        self._make_groups_recursively(dest_path, as_group=False)
+        # move elements first in the XML object repr, then the
 
-        move_paths = []
-        for _path in self._children_paths:
-            if _path == root_child.path:
-                # move element in the XML object repr
-                old_parent_elem = self._get_parent_from_path(_path)._elem
-                new_parent_elem = self._children_paths[dest_path]._elem
-                old_parent_elem.remove(root_child._elem)
-                new_parent_elem.insert(dest_z_index-1, root_child._elem)
-
-            if _path.startswith(root_child.path):
-                move_paths.append(_path)
-
-        for _path in move_paths:
-
-            full_dest_path = _path.replace(root_child.path, dest_path + ('' if dest_path[-1] == '/' else '/')  + root_child.name, 1)
-            self._children_paths[full_dest_path] = self._children_paths.pop(_path)
-            self._children_paths[full_dest_path]._path = full_dest_path
+        old_parent_elem = child.parent._elem
+        old_parent_elem.removeChild(child._elem)
+        self._insertElementAtIndex(dest_parent._elem, dst_z_index-1, child._elem)
 
     @property
     def dimensions(self):
@@ -487,34 +523,6 @@ class Project:
     def name(self):
         return self._elem_root.attrib.get('name', None)
 
-    @property
-    def children(self):
-        return self._children
-
-    @property
-    def paths(self):
-        return self._children_paths
-
-    @property
-    def uuids(self):
-        return self._children_uuids
-
-    @property
-    def root(self):
-        """
-        Get a reference to the outermost layer group containing everything else
-        :return: Group() Object
-        """
-        return self._root_group
-
-    def __contains__(self, item):
-        return item in self._children_paths
-
-    def __getitem__(self, item):
-        return self._children_paths[item]
-
-    def get_by_uuid(self, uuid):
-        return self._children_uuids[uuid]
 
     def get_image_data(self, use_original=False):
         """

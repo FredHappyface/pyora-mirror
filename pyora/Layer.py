@@ -14,10 +14,9 @@ import re
 
 class OpenRasterItemBase:
 
-    def __init__(self, project, elem, path, _type):
+    def __init__(self, project, elem, _type):
         self._elem = elem
         self._type = _type
-        self._path = path
         self._project = project
 
     def __setitem__(self, key, value):
@@ -45,10 +44,12 @@ class OpenRasterItemBase:
         Get the group object for the parent of this layer or group
         :return:
         """
-        if self._path == '/':
+        if self._elem is self._project._root_group._elem:
             return None
-
-        return self._project['/'.join(self._path.split('/')[:-1])]
+        parentNode = self._project._parentNode(self._elem)
+        if parentNode is self._project._root_group._elem:
+            return self._project._root_group
+        return self._project._children_uuids[parentNode.attrib['uuid']]
 
     @property
     def is_group(self):
@@ -77,13 +78,6 @@ class OpenRasterItemBase:
     def name(self, value):
 
         self._elem.set('name', str(value))
-
-    @property
-    def path(self):
-        """
-        :return: str - the layer path
-        """
-        return self._path
 
     @property
     def z_index(self):
@@ -197,136 +191,11 @@ class OpenRasterItemBase:
         self._elem.set('composite-op', str(value))
 
 
-class Group(OpenRasterItemBase):
-    def __init__(self, project, elem, path):
-
-        super().__init__(project, elem, path, TYPE_GROUP)
-
-    def __iter__(self):
-        yield from self.children
-
-    def __repr__(self):
-        return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
-
-    @property
-    def isolated(self):
-        """
-        :return: bool - is the layer rendered isolated
-        """
-        return self._elem.attrib.get('isolation', 'auto') == 'isolate'
-
-    @isolated.setter
-    def isolated(self, value):
-        """
-        Set the isolation rendering property of this group.
-        By default, groups are isolated, which means that composite and blending will be performed as if
-        the group was over a blank background. Other layers painted below the group are not composited/blended with
-        (until the whole group is done rendering by itself, at which point it is composited/blended with its own
-        composite-op attribute to the painted canvas below it) If isolation is turned off, the base background will
-        be the current canvas already painted, instead of a blank canvas.
-        To comply with ORA spec, the isolation property is ignored (and groups are forced to be rendered isolated)
-        if either (1) their opacity is less than 1.0 or (2) they use a composite-op other than 'svg:src-over'
-        :param value:
-        :return:
-        """
-        self._elem.set('isolation', 'isolate' if value else 'auto')
-
-    @OpenRasterItemBase.name.setter
-    def name(self, value):
-
-        old_path = self._path
-        parts = self._path.split('/')
-        parts[-1] = value
-        self._path = '/'.join(parts)
-
-        # in this case we also need to go through all the other paths that involved this group and replace them
-        for _path in self._project._children_paths:
-            if _path.startswith(old_path):
-                _new_path = _path.replace(old_path, self._path, 1)
-                self._project._children_paths[_new_path] = self._project._children_paths.pop(_path)
-
-        self._elem.set('name', str(value))
-
-    @property
-    def children(self):
-        """
-        Returns all layers and groups under this group
-        """
-        for _child in self._project.children:
-            if _child.path.startswith(self.path + '/'):
-                yield _child
-
-    @property
-    def paths(self):
-        """
-        Returns the paths to all layers and groups under this group
-        """
-        for _path in self._project._children_paths:
-            if _path.startswith(self.path + '/'):
-                yield _path
-
-    @property
-    def uuids(self):
-        """
-        Returns the uuids belonging to all layers and groups under this group
-        """
-        for _path in self._project._children_paths:
-            if _path.startswith(self.path + '/'):
-                yield self._project[_path].uuid
-
-    @property
-    def groups(self):
-        """
-        Returns the group objects under this group
-        """
-        for _path in self._project._children_paths:
-            if _path.startswith(self.path + '/') and self._project[_path].type == TYPE_GROUP:
-                yield self._project[_path].uuid
-
-    @property
-    def layers(self):
-        """
-        Returns the layer objects under this group
-        """
-        for _path in self._project._children_paths:
-            if _path.startswith(self.path + '/') and self._project[_path].type == TYPE_LAYER:
-                yield self._project[_path].uuid
-
-
-
-    def get_image_data(self, raw=False):
-        """
-        Get a PIL Image() object of the group (composed of all underlying layers).
-        By default the returned image will always be the same dimension as the project canvas, and the original
-        image data will be placed / cropped inside of that.
-        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
-        :return: PIL Image()
-        """
-        raise NotImplementedError()
-
-    @property
-    def dimensions(self):
-        """
-        Not a supported ORA spec metadata, but we can read all png data below us to find the total enclosed size
-        """
-
-        # iter layers below
-        for _item in self._elem.findall('.//*'):
-            pass
-            # for each item need to iterate downward until we hit a layer, keeping track of all of the x and y values
-            # and totaling them up. Then for that layer we use its size to get the min/max x/y
-
-            # finally, out of all min/max x/y , get the greatest/least and return the differences
-
-            # min-x: the lowest value for offset
-        return self.image.size
-
-
 class Layer(OpenRasterItemBase):
 
-    def __init__(self, image, project, elem, path):
+    def __init__(self, image, project, elem):
 
-        super().__init__(project, elem, path, TYPE_LAYER)
+        super().__init__(project, elem, TYPE_LAYER)
 
         self.image = image
 
@@ -335,14 +204,6 @@ class Layer(OpenRasterItemBase):
 
     @OpenRasterItemBase.name.setter
     def name(self, value):
-
-        # need to update stored paths in parent
-        old_path = self._path
-        parts = self._path.split('/')
-        parts[-1] = value
-        self._path = '/'.join(parts)
-        self._project._children_paths[self._path] = self._project._children_paths.pop(old_path)
-
         self._elem.set('name', str(value))
 
     def _set_image_data(self, image):
@@ -396,4 +257,121 @@ class Layer(OpenRasterItemBase):
         """
         return self.image.size
 
+
+class Group(OpenRasterItemBase):
+    def __init__(self, project, elem):
+
+        super().__init__(project, elem, TYPE_GROUP)
+
+    def __iter__(self):
+        yield from self.children
+
+    def __repr__(self):
+        return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
+
+    def add_layer(self, image, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+                  composite_op="svg:src-over", uuid=None, **kwargs):
+        return self._project._add_layer(image, self._elem, name, z_index=z_index, offsets=offsets,
+                                        opacity=opacity, visible=visible, composite_op=composite_op,
+                                        uuid=uuid, **kwargs)
+
+    def add_group(self, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+                  composite_op="svg:src-over", uuid=None, **kwargs):
+        return self._project._add_group(self._elem, name, z_index=z_index, offsets=offsets,
+                                        opacity=opacity, visible=visible, composite_op=composite_op,
+                                        uuid=uuid, **kwargs)
+
+    @property
+    def isolated(self):
+        """
+        :return: bool - is the layer rendered isolated
+        """
+        return self._elem.attrib.get('isolation', 'auto') == 'isolate'
+
+    @isolated.setter
+    def isolated(self, value):
+        """
+        Set the isolation rendering property of this group.
+        By default, groups are isolated, which means that composite and blending will be performed as if
+        the group was over a blank background. Other layers painted below the group are not composited/blended with
+        (until the whole group is done rendering by itself, at which point it is composited/blended with its own
+        composite-op attribute to the painted canvas below it) If isolation is turned off, the base background will
+        be the current canvas already painted, instead of a blank canvas.
+        To comply with ORA spec, the isolation property is ignored (and groups are forced to be rendered isolated)
+        if either (1) their opacity is less than 1.0 or (2) they use a composite-op other than 'svg:src-over'
+        :param value:
+        :return:
+        """
+        self._elem.set('isolation', 'isolate' if value else 'auto')
+
+    @OpenRasterItemBase.name.setter
+    def name(self, value):
+        self._elem.set('name', str(value))
+
+    @property
+    def children(self):
+        """
+        Returns all layers and groups under this group
+        """
+        for _child in self._elem:
+            yield self._project.get_by_uuid(_child.attrib['uuid'])
+
+    @property
+    def children_recursive(self):
+        """
+        Returns all layers and groups under this group, and groups under that, etc.
+        """
+        for _child in self._elem.find('*'):
+            yield self._project.get_by_uuid(_child.attrib['uuid'])
+
+    @property
+    def uuids(self):
+        """
+        Returns the uuids belonging to all layers and groups under this group
+        """
+        for _child in self._elem.find('*'):
+            yield _child.attrib['uuid']
+
+    @property
+    def groups(self):
+        """
+        Returns the group objects under this group
+        """
+        for _child in self._elem.find('stack'):
+            yield self._project.get_by_uuid(_child.attrib['uuid'])
+
+    @property
+    def layers(self):
+        """
+        Returns the layer objects under this group
+        """
+        for _child in self._elem.find('layer'):
+            yield self._project.get_by_uuid(_child.attrib['uuid'])
+
+    def get_image_data(self, raw=False):
+        """
+        Get a PIL Image() object of the group (composed of all underlying layers).
+        By default the returned image will always be the same dimension as the project canvas, and the original
+        image data will be placed / cropped inside of that.
+        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
+        :return: PIL Image()
+        """
+        raise NotImplementedError()
+
+    @property
+    def dimensions(self):
+        """
+        Not a supported ORA spec metadata, but we can read all png data below us to find the total enclosed size
+        """
+        raise NotImplementedError()
+        # iter layers below
+        # for _item in self._elem.findall('.//*'):
+        #     pass
+        #     # for each item need to iterate downward until we hit a layer, keeping track of all of the x and y values
+        #     # and totaling them up. Then for that layer we use its size to get the min/max x/y
+        #
+        #     # finally, out of all min/max x/y , get the greatest/least and return the differences
+        #
+        #     # min-x: the lowest value for offset
+        # return self.image.size
 
