@@ -12,7 +12,7 @@ from pyora.Render import Renderer, make_thumbnail
 from pyora.Layer import Layer, Group
 from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
 import re
-
+import uuid
 
 class Project:
 
@@ -23,6 +23,7 @@ class Project:
         self._children_uuids = {}
         self._extracted_merged_image = None
         self._filename_counter = 0
+        self._generated_uuids = False
 
 
     def __iter__(self):
@@ -154,6 +155,9 @@ class Project:
             def _build_tree(parent, basepath):
 
                 for child_elem in parent._elem:
+                    if not child_elem.attrib.get('uuid', None):
+                        self._generated_uuids = True
+                        child_elem.set('uuid', str(uuid.uuid4()))
 
                     cur_path = basepath + '/' + child_elem.attrib['name']
                     if child_elem.tag == 'stack':
@@ -251,6 +255,11 @@ class Project:
 
     def _add_elem(self, tag, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
                   **kwargs):
+
+        print(kwargs)
+        if not 'uuid' in kwargs or kwargs['uuid'] is None:
+            self._generated_uuids = True
+            kwargs['uuid'] = str(uuid.uuid4())
 
         parts = path.split('/')
         name, parent_elem = parts[-1], self._get_parent_from_path(path)._elem
