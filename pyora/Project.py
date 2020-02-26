@@ -300,7 +300,7 @@ class Project:
             make_thumbnail(composite_image)  # works in place
             self._zip_store_image(zipref, 'Thumbnails/thumbnail.png', composite_image)
 
-            for layer in self.children:
+            for layer in self.children_recursive:
                 if layer.type == TYPE_LAYER:
                     self._zip_store_image(zipref, layer['src'], layer.get_image_data())
 
