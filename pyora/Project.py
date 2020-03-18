@@ -33,7 +33,7 @@ class Project:
         if path == '/':
             return self.root
         if path.startswith('/'):
-            path = path.replace('/', '')
+            path = path[1:]
 
         current_group = self._root_group
         for name in path.split('/'):
