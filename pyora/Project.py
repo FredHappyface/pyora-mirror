@@ -219,6 +219,13 @@ class Project:
 
             self._elem = self._elem_root[0]  # get the "root" layer group
 
+            # we expect certain default attributes for the root group (Krita follows this standard)
+            self._elem.set("isolation", "isolate")
+            self._elem.set("composite-op", "svg:src-over")
+            self._elem.set("opacity", "1")
+            self._elem.set("name", "")
+            self._elem.set("visibility", "visible")
+
             def _build_tree(parent, basepath):
 
                 for child_elem in parent._elem:
@@ -266,7 +273,7 @@ class Project:
         self._elem_root = ET.fromstring(f'<image version="{ORA_VERSION}" h="{height}" w="{width}" '
                                         f'xres="{xres}" yres="{yres}">'
                                         f'<stack composite-op="svg:src-over" opacity="1" name="root" '
-                                        f'visibility="visible"></stack></image>')
+                                        f'visibility="visible" isolation="isolate"></stack></image>')
         self._elem = self._elem_root[0]
         self._root_group = Group(self, self._elem)
         self._extracted_merged_image = None
