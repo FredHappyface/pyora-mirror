@@ -251,6 +251,11 @@ class Project:
                     self._children_uuids[_new.uuid] = _new
 
             self._root_group = Group(self, self._elem)
+
+            self._children.append(self._root_group)
+            self._children_elems[self._elem] = self._root_group
+            self._children_uuids[self._root_group.uuid] = self._root_group
+
             _build_tree(self._root_group, '')
 
 
@@ -276,6 +281,11 @@ class Project:
                                         f'visibility="visible" isolation="isolate"></stack></image>')
         self._elem = self._elem_root[0]
         self._root_group = Group(self, self._elem)
+
+        self._children.append(self._root_group)
+        self._children_elems[self._elem] = self._root_group
+        self._children_uuids[self._root_group.uuid] = self._root_group
+
         self._extracted_merged_image = None
 
     def save(self, path_or_file, composite_image=None, use_original=False):
