@@ -188,7 +188,7 @@ class Renderer:
 
                 if current_group.visible:
                     # determine if isolation is appropriate
-                    if current_group.isolated or current_group.opacity < 1.0 or current_group.composite_op != 'svr:src-over':
+                    if current_group.isolated or current_group.opacity < 1.0 or current_group.composite_op != 'svg:src-over':
                         backdrop = self.pil2np(Image.new('RGBA', self.project.dimensions, (0, 0, 0, 0)))
                     else:
                         backdrop = canvas
