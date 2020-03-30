@@ -96,10 +96,9 @@ class OpenRasterItemBase:
         :param new_z_index:
         :return:
         """
-
-        self.parent._elem.remove(self._elem)
-        self.parent._elem.insert(new_z_index-1, self._elem)
-
+        parent = self.parent._elem
+        parent.remove(self._elem)
+        parent.insert(len(parent) - (new_z_index - 1), self._elem)
 
     @property
     def visible(self):

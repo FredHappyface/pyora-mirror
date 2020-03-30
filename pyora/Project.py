@@ -352,7 +352,7 @@ class Project:
                                         'visibility': 'visible' if visible else 'hidden',
                                         'opacity': str(opacity), 'composite-op': composite_op,
                                     **{k: str(v) for k, v in kwargs.items() if v is not None}})
-        parent_elem.insert(z_index - 1, new_elem)
+        parent_elem.insert(len(parent_elem) - (z_index - 1), new_elem)
         return new_elem
 
     def _add_layer(self, image, parent_elem, name, **kwargs):
