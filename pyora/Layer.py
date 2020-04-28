@@ -123,6 +123,26 @@ class OpenRasterItemBase:
         self._elem.set('visibility', 'hidden' if value else 'visible')
 
     @property
+    def visible_rendered(self):
+        """
+        :return: bool - visible property of this group when considering all ancestors
+        """
+        parent = self
+        while True:
+            if parent.hidden:
+                return False
+            parent = parent.parent
+            if parent is None:
+                return True
+
+    @property
+    def hidden_rendered(self):
+        """
+        :return: bool - hidden property of this group when considering all ancestors
+        """
+        return not self.visible_rendered
+
+    @property
     def opacity(self):
         """
         :return: float 0.0 - 1.0 defining opacity
