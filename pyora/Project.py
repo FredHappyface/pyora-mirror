@@ -235,17 +235,16 @@ class Project:
             self._elem.set("name", "")
             self._elem.set("visibility", "visible")
 
-            def _build_tree(parent, basepath):
+            def _build_tree(parent):
 
                 for child_elem in parent._elem:
                     if not child_elem.attrib.get('uuid', None):
                         self._generated_uuids = True
                         child_elem.set('uuid', str(uuid.uuid4()))
 
-                    cur_path = basepath + '/' + child_elem.attrib['name']
                     if child_elem.tag == 'stack':
                         _new = Group(self, child_elem)
-                        _build_tree(_new, cur_path)
+                        _build_tree(_new)
                     elif child_elem.tag == 'layer':
                         with zipref.open(child_elem.attrib['src']) as layerFile:
                             image = Image.open(layerFile).convert('RGBA')
@@ -265,7 +264,7 @@ class Project:
             self._children_elems[self._elem] = self._root_group
             self._children_uuids[self._root_group.uuid] = self._root_group
 
-            _build_tree(self._root_group, '')
+            _build_tree(self._root_group)
 
 
     @staticmethod
