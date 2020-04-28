@@ -23,6 +23,7 @@ class Project:
         self._extracted_merged_image = None
         self._filename_counter = 0
         self._generated_uuids = False
+        self._isolate_non_opaque_groups = False
 
     def get_by_path(self, path):
         """
@@ -82,6 +83,14 @@ class Project:
     @property
     def uuids(self):
         return self._children_uuids
+
+    @property
+    def iter_tree(self):
+        layer_list = []
+        for layer in self._elem_root.iter():
+            if layer.tag in ('layer', 'stack'):
+                layer_list.insert(0, self._children_elems[layer])
+        return layer_list
 
     @property
     def iter_layers(self):

@@ -3,7 +3,6 @@
 
 """
 import numpy as np
-from pyora.Blend import reshape_dest
 
 
 """
@@ -17,30 +16,39 @@ Fb = fraction of the inclusion of the destination
 
 co = αs x Fa x Cs + αb x Fb x Cb
 """
+#
+# def prep_operators(source, destination, opacity, offsets):
+#     destination = reshape_dest(destination, source, offsets)
+#
+#     source_norm = source / 255.0
+#     destination_norm = destination / 255.0
+#
+#     a_s = np.expand_dims(source_norm[:, :, 3], 2) * opacity
+#     a_b = np.expand_dims(destination_norm[:, :, 3], 2)
+#     c_s = source_norm[:, :, :3]
+#     c_b = destination_norm[:, :, :3]
+#
+#     return a_s, a_b, c_s, c_b
+#
+# def prep_output(co, ao):
+#     c_out = np.dstack((co / ao, ao))
+#
+#     # co/ao to get color back from calculation
+#     # opacity of layer is only applied in the final output alpha
+#     np.nan_to_num(c_out, copy=False)
+#
+#     return c_out * 255.0
 
-def prep_operators(source, destination, opacity, offsets):
-    destination = reshape_dest(destination, source, offsets)
+def src_over(lower_rgb, upper_rgb):
 
-    source_norm = source / 255.0
-    destination_norm = destination / 255.0
+    return upper_rgb
 
-    a_s = np.expand_dims(source_norm[:, :, 3], 2) * opacity
-    a_b = np.expand_dims(destination_norm[:, :, 3], 2)
-    c_s = source_norm[:, :, :3]
-    c_b = destination_norm[:, :, :3]
+def plus(lower_rgb, upper_rgb):
 
-    return a_s, a_b, c_s, c_b
+    return np.minimum(lower_rgb + upper_rgb, 1.0)
 
-def prep_output(co, ao):
-    c_out = np.dstack((co / ao, ao))
 
-    # co/ao to get color back from calculation
-    # opacity of layer is only applied in the final output alpha
-    np.nan_to_num(c_out, copy=False)
-
-    return c_out * 255.0
-
-def dst_in(source, destination, opacity=1.0, offsets=(0, 0)):
+def dst_in(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     'Clip' composite mode
     All parts of 'layer above' which are alpha in 'layer below' will be made also alpha in 'layer above'
@@ -57,15 +65,13 @@ def dst_in(source, destination, opacity=1.0, offsets=(0, 0)):
     :return:
     """
 
-    a_s, a_b, c_s, c_b = prep_operators(source, destination, opacity, offsets)
+    out_alpha = lower_alpha * upper_alpha
+    out_rgb = np.divide(np.multiply((lower_alpha * upper_alpha)[:, :, None], lower_rgb), out_alpha[:, :, None])
 
-    co = a_b * c_b * a_s
-    ao = a_b * a_s
-
-    return prep_output(co, ao)
+    return out_rgb, out_alpha
 
 
-def dst_out(source, destination, opacity=1.0, offsets=(0, 0)):
+def dst_out(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     reverse 'Clip' composite mode
     All parts of 'layer below' which are alpha in 'layer above' will be made also alpha in 'layer below'
@@ -74,14 +80,13 @@ def dst_out(source, destination, opacity=1.0, offsets=(0, 0)):
     :param img_layer:
     :return:
     """
-    a_s, a_b, c_s, c_b = prep_operators(source, destination, opacity, offsets)
 
-    co = a_b * c_b * (1 - a_s)
-    ao = a_b * (1 - a_s)
+    out_alpha = lower_alpha * (1 - upper_alpha)
+    out_rgb = np.divide(np.multiply((lower_alpha * (1 - upper_alpha))[:, :, None], lower_rgb), out_alpha[:, :, None])
 
-    return prep_output(co, ao)
+    return out_rgb, out_alpha
 
-def dst_atop(source, destination, opacity=1.0, offsets=(0, 0)):
+def dst_atop(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     place the layer below above the 'layer above' in places where the 'layer above' exists
     where 'layer below' does not exist, but 'layer above' does, place 'layer-above'
@@ -91,16 +96,19 @@ def dst_atop(source, destination, opacity=1.0, offsets=(0, 0)):
     :return:
     """
 
-    a_s, a_b, c_s, c_b = prep_operators(source, destination, opacity, offsets)
+    out_alpha = (upper_alpha * (1 - lower_alpha)) + (lower_alpha * upper_alpha)
+    out_rgb = np.divide(
+                np.multiply((upper_alpha * (1 - lower_alpha))[:, :, None], upper_rgb) +
+                np.multiply((lower_alpha * upper_alpha)[:, :, None], lower_rgb),
+                out_alpha[:, :, None]
+              )
 
-    co = (a_s * c_s * (1 - a_b)) + (a_b * c_b * a_s)
-    ao = (a_s * (1 - a_b)) + (a_b * a_s)
 
-    return prep_output(co, ao)
+    return out_rgb, out_alpha
 
 
 
-def src_atop(source, destination, opacity=1.0, offsets=(0, 0)):
+def src_atop(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     place the layer below above the 'layer above' in places where the 'layer above' exists
     :param img_in:
@@ -108,25 +116,11 @@ def src_atop(source, destination, opacity=1.0, offsets=(0, 0)):
     :return:
     """
 
-    a_s, a_b, c_s, c_b = prep_operators(source, destination, opacity, offsets)
+    out_alpha = (upper_alpha * lower_alpha) + (lower_alpha * (1 - upper_alpha))
+    out_rgb = np.divide(
+                np.multiply((upper_alpha * lower_alpha)[:, :, None], upper_rgb) +
+                np.multiply((lower_alpha * (1 - upper_alpha))[:, :, None], lower_rgb),
+                out_alpha[:, :, None]
+              )
 
-    co = (a_s * c_s * a_b) + (a_b * c_b * (1 - a_s))
-    ao = (a_s * a_b) + (a_b * (1 - a_s))
-
-    return prep_output(co, ao)
-
-def plus(source, destination, opacity=1.0, offsets=(0, 0)):
-    """
-
-    :param img_in:
-    :param img_layer:
-    :return:
-    """
-
-    a_s, a_b, c_s, c_b = prep_operators(source, destination, opacity, offsets)
-
-    # np.minimum needed to prevent rollover when max alpha / color values reached
-    co = np.minimum((a_s * c_s) + (a_b * c_b), 1.0)
-    ao = np.minimum(a_s + a_b, 1.0)
-
-    return prep_output(co, ao)
+    return out_rgb, out_alpha

@@ -122,6 +122,8 @@ class OpenRasterItemBase:
     def hidden(self, value):
         self._elem.set('visibility', 'hidden' if value else 'visible')
 
+
+
     @property
     def visible_rendered(self):
         """
@@ -299,6 +301,15 @@ class Group(OpenRasterItemBase):
         return self._project._add_group(self._elem, name, z_index=z_index, offsets=offsets,
                                         opacity=opacity, visible=visible, composite_op=composite_op,
                                         uuid=uuid, **kwargs)
+
+    @property
+    def _renders_isolated(self):
+        """
+        should be isolated according to ORA spec
+        """
+        return self.isolated or \
+               (self._project._isolate_non_opaque_groups and self.opacity < 1.0) or\
+               self.composite_op != 'svg:src-over'
 
     @property
     def isolated(self):
