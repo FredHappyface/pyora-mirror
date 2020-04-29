@@ -177,7 +177,7 @@ class Renderer:
     #
     #     return canvas
 
-    def render(self):
+    def render(self, root_group=None):
         """
         for each layer (except the lowest one), apply blend mode to it, from
         it and the layer below it
@@ -199,13 +199,11 @@ class Renderer:
 
         :return:
         """
-
         
         canvas = self.pil2np(Image.new('RGBA', self._project.dimensions))
-
         
-        all_children = list(self._project.iter_tree)
-        current_group = self._project._root_group
+        all_children = list(self._project.iter_tree) if root_group is None else root_group.iter_tree
+        current_group = self._project._root_group if root_group is None else root_group
 
         isolated_stacks = [canvas]
         non_isolated_alpha = 1.0

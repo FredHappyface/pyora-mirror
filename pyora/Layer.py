@@ -362,6 +362,14 @@ class Group(OpenRasterItemBase):
             yield self._project.get_by_uuid(_child.attrib['uuid'])
 
     @property
+    def iter_tree(self):
+        layer_list = []
+        for layer in self._elem.iter():
+            if layer.tag in ('layer', 'stack'):
+                layer_list.insert(0, self._project._children_elems[layer])
+        return layer_list
+
+    @property
     def uuids(self):
         """
         Returns the uuids belonging to all layers and groups under this group
@@ -385,15 +393,20 @@ class Group(OpenRasterItemBase):
         for _child in self._elem.find('layer'):
             yield self._project.get_by_uuid(_child.attrib['uuid'])
 
-    def get_image_data(self, raw=False):
+    def get_image_data(self, raw=True):
         """
         Get a PIL Image() object of the group (composed of all underlying layers).
-        By default the returned image will always be the same dimension as the project canvas, and the original
-        image data will be placed / cropped inside of that.
-        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
-        :return: PIL Image()
         """
-        raise NotImplementedError()
+        renderer = Renderer(self._project)
+        _layerData = renderer.render(self)
+
+        if raw:
+            return _layerData
+        dims = self._project.dimensions
+        canvas = Image.new('RGBA', (dims[0], dims[1]))
+        canvas.paste(_layerData, self.offsets)
+
+        return canvas
 
     @property
     def dimensions(self):
