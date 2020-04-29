@@ -328,7 +328,7 @@ class Project:
 
             for layer in self.children_recursive:
                 if layer.type == TYPE_LAYER:
-                    self._zip_store_image(zipref, layer['src'], layer.get_image_data())
+                    self._zip_store_image(zipref, layer['src'], layer.get_image_data(raw=True))
 
     def _get_parent_from_path(self, path):
 

@@ -242,7 +242,7 @@ class Layer(OpenRasterItemBase):
         """
         self._set_image_data(image)
 
-    def get_image_data(self, raw=False):
+    def get_image_data(self, raw=True):
         """
         Get a PIL Image() object of the layer.
         By default the returned image will always be the same dimension as the project canvas, and the original
