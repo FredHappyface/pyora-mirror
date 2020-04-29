@@ -86,6 +86,8 @@ class OpenRasterItemBase:
         Higher numbers are 'on top' of lower numbers. The lowest value is 1.
         :return: int - the z_index of the layer
         """
+        if self.parent is None:
+            return 1
         return list(reversed(self.parent._elem.getchildren())).index(self._elem) + 1
 
     @z_index.setter
@@ -96,6 +98,8 @@ class OpenRasterItemBase:
         :param new_z_index:
         :return:
         """
+        if self.parent is None:
+            raise ValueError("It is not possible to set the z-index of the root group")
         parent = self.parent._elem
         parent.remove(self._elem)
         parent.insert(len(parent) - (new_z_index - 1), self._elem)
@@ -301,6 +305,9 @@ class Group(OpenRasterItemBase):
         return self._project._add_group(self._elem, name, z_index=z_index, offsets=offsets,
                                         opacity=opacity, visible=visible, composite_op=composite_op,
                                         uuid=uuid, **kwargs)
+
+    def add_tree(self, name, other_group):
+        return self._project._add_tree(self._elem, name, other_group)
 
     @property
     def _renders_isolated(self):

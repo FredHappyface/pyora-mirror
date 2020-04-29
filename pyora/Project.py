@@ -13,6 +13,7 @@ from pyora.Layer import Layer, Group
 from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
 import re
 import uuid
+from copy import deepcopy
 
 class Project:
 
@@ -391,6 +392,53 @@ class Project:
         self._children_elems[elem] = obj
         self._children_uuids[obj.uuid] = obj
         return obj
+
+    def _add_tree(self, parent_elem, name, other_group):
+        """
+        Add a group, recursively, under the specified parent
+        Each element is copied and has it's attributes copied.
+        """
+
+        def _build_tree(parent):
+            for child_elem in reversed(parent._elem):
+                if not child_elem.attrib.get('uuid', None) or child_elem.attrib['uuid'] in self._children_uuids:
+                    child_elem.attrib['uuid'] = str(uuid.uuid4())
+
+                if child_elem.tag == 'stack':
+                    _new = Group(self, child_elem)
+                    _build_tree(_new)
+                elif child_elem.tag == 'layer':
+                    image = other_group._project.get_by_uuid(child_elem.attrib['uuid']).get_image_data(raw=True)
+                    new_filename = f'/data/layer{self._filename_counter}.png'
+                    self._filename_counter += 1
+                    child_elem.attrib['src'] = new_filename
+                    _new = Layer(image, self, child_elem)
+                else:
+                    print(f"pyora warning: Unknown tag in stack: {child_elem.tag}")
+                    continue
+                self._children.append(_new)
+                self._children_elems[child_elem] = _new
+                self._children_uuids[_new.uuid] = _new
+
+        # insert XML structure
+        cloned_xml = deepcopy(other_group._elem)
+        z_index = 1
+
+        cloned_xml.attrib['name'] = name
+        if not cloned_xml.attrib.get('uuid', None) or cloned_xml.attrib['uuid'] in self._children_uuids:
+            cloned_xml.attrib['uuid'] = str(uuid.uuid4())
+
+        self._insertElementAtIndex(parent_elem, len(parent_elem) - (z_index-1), cloned_xml)
+
+        new_outer_group = Group(self, cloned_xml)
+
+        self._children.append(new_outer_group)
+        self._children_elems[cloned_xml] = new_outer_group
+        self._children_uuids[new_outer_group.uuid] = new_outer_group
+
+        _build_tree(new_outer_group)
+
+        return new_outer_group
 
     def _make_groups_recursively(self, path):
         """
