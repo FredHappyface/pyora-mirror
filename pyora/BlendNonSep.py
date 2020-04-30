@@ -123,22 +123,12 @@ def _setSat(c_orig, s):
             mid_i = 1
             max_i = 2
 
-            # this part might be able to be a kernel in the future
             if c[mid_i] < c[min_i]:
-                tmp = min_i
-                min_i = mid_i
-                mid_i = tmp
-
+                min_i, mid_i = mid_i, min_i
             if c[max_i] < c[mid_i]:
-                tmp = mid_i
-                mid_i = max_i
-                max_i = tmp
-
+                mid_i, max_i = max_i, mid_i
             if c[mid_i] < c[min_i]:
-                tmp = min_i
-                min_i = mid_i
-                mid_i = tmp
-
+                min_i, mid_i = mid_i, min_i
             if c[max_i] - c[min_i] > 0.0:
                 _c[i][j][mid_i] = (((c[mid_i] - c[min_i]) * s[i, j]) / (c[max_i] - c[min_i]))
                 _c[i][j][max_i] = s[i, j]
