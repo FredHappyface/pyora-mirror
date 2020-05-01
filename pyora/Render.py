@@ -107,7 +107,7 @@ class Renderer:
     def np2pil(self, arr):
         return Image.fromarray(np.uint8(np.around(arr, 0)))
 
-    def _render_two(self, backdrop, layer_data, offsets, opacity, composite_op):
+    def _render_two(self, backdrop, layer_data, offsets, opacity, composite_op='svg:src-over'):
 
 
         """
@@ -207,6 +207,7 @@ class Renderer:
 
         isolated_stacks = [canvas]
         non_isolated_alpha = 1.0
+
 
         # the last child will always just be the root group, so we don't need this in our main painting loop
         all_children.pop()
