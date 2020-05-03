@@ -22,7 +22,6 @@ class Project:
         self._children_elems = {}
         self._children_uuids = {}
         self._extracted_merged_image = None
-        self._filename_counter = 0
         self._generated_uuids = False
         self._isolate_non_opaque_groups = False
 
@@ -326,8 +325,12 @@ class Project:
             make_thumbnail(composite_image)  # works in place
             self._zip_store_image(zipref, 'Thumbnails/thumbnail.png', composite_image)
 
+            filename_counter = 0
             for layer in self.children_recursive:
                 if layer.type == TYPE_LAYER:
+                    new_filename = f'/data/layer{filename_counter}.png'
+                    layer._elem.attrib['src'] = new_filename
+                    filename_counter += 1
                     self._zip_store_image(zipref, layer['src'], layer.get_image_data(raw=True))
 
     def _get_parent_from_path(self, path):
@@ -353,6 +356,9 @@ class Project:
     def _add_elem(self, tag, parent_elem, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
                   **kwargs):
 
+        if tag == 'stack' and not 'isolated' in kwargs:
+            kwargs['isolated'] = True
+
         if not 'uuid' in kwargs or kwargs['uuid'] is None:
             self._generated_uuids = True
             kwargs['uuid'] = str(uuid.uuid4())
@@ -365,14 +371,9 @@ class Project:
         return new_elem
 
     def _add_layer(self, image, parent_elem, name, **kwargs):
-        # generate some unique filename
-        # we follow Krita's standard of just 'layer%d' type format
-        #index = len([x for x in self.children if x.type == TYPE_LAYER])
-        new_filename = f'/data/layer{self._filename_counter}.png'
-        self._filename_counter += 1
 
         # add xml element
-        elem = self._add_elem('layer', parent_elem, name, **kwargs, src=new_filename)
+        elem = self._add_elem('layer', parent_elem, name, **kwargs)
         obj = Layer(image, self, elem)
 
         self._children.append(obj)
@@ -409,9 +410,6 @@ class Project:
                     _build_tree(_new)
                 elif child_elem.tag == 'layer':
                     image = other_group._project.get_by_uuid(child_elem.attrib['uuid']).get_image_data(raw=True)
-                    new_filename = f'/data/layer{self._filename_counter}.png'
-                    self._filename_counter += 1
-                    child_elem.attrib['src'] = new_filename
                     _new = Layer(image, self, child_elem)
                 else:
                     print(f"pyora warning: Unknown tag in stack: {child_elem.tag}")
