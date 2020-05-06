@@ -622,8 +622,50 @@ class Project:
         r = Renderer(self)
         return make_thumbnail(r.render())
 
+    def get_stack_xml(self):
+        """
+        Get the current stack.xml representation of the project
+        (equivalent to the 'stack.xml' which would be saved on .save())
+        :return: string of stack xml
+        """
+        return ET.tostring(self._elem_root, method='xml')
 
+    def set_stack_xml(self, xml_dom, new_sources=None):
+        """
+        Using the 'stack.xml' standard format, update the current project to reflect the new scheme.
+        This allows updating attributes / positioning in an exportable format without needing to
+        store / transfer all of the data in the raster files themselves.
 
+        - all uuids in the incoming scheme must match uuids in the current project
 
+        :param xml_dom: String or parsed elementtree() of the stack.xml standard format
+        :param new_sources: (optional) dict of {uuid: new Image() object} of raster image sources
+        to update during application of the new xml stack
+        :return: None
+        """
 
+        if type(xml_dom) is str:
+            xml_dom = ET.fromstring(xml_dom)
 
+        # replace the xml doc with the new incoming one
+        self._elem_root = xml_dom
+
+        # update the fixed root references
+        self._elem = self._elem_root[0]
+        self._root_group._elem = self._elem
+        self._children_elems = {}
+
+        # find every relevant element in the new document, and update references to new elems
+        for _child in self._elem.iter():
+            obj = self._children_uuids[_child.attrib['uuid']]
+            self._children_uuids[_child.attrib['uuid']]._elem = _child
+            self._children_elems[_child] = obj
+
+        # if updated sources are provided, apply them
+        if new_sources:
+            for _uuid in new_sources:
+                if not _uuid in self._children_uuids:
+                    print(f"Pyora Warning: Not able to set new source for UUID {_uuid} ;"
+                          f" it does not exist in the new tree")
+                    continue
+                self._children_uuids[_uuid].src = new_sources[_uuid]
