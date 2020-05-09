@@ -14,6 +14,7 @@ from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
 import re
 import uuid
 from copy import deepcopy
+from contextlib import ExitStack
 
 class Project:
 
@@ -208,23 +209,50 @@ class Project:
         proj._load(path_or_file)
         return proj
 
-    def _load(self, path_or_file):
+    def from_stack_xml(self, xml_dom, srcs_to_files):
+        """
+        Create a new project from XML stack spec, and references to layer data files.
+        :param xml_dom: either a string of xml or the parsed XML elementtree instance
+        :param srcs_to_files: dict of layer "src" attribute strings, to .read()-able File-like objects
+        of the layer PNG (or other image) data. Any images that PIL supports are fine.
+        :return: None
+        """
+        if type(xml_dom) is str:
+            xml_dom = ET.fromstring(xml_dom)
 
-        with zipfile.ZipFile(path_or_file, 'r') as zipref:
+        self._load(path_or_file=None, xml_dom=xml_dom, srcs_to_files=srcs_to_files)
+
+    def _load(self, path_or_file=None, xml_dom=None, srcs_to_files=None):
+        """
+        Can either be called with "path_or_file" to open an existing ORA file, or with
+        both "xml_dom" and "uuid_to_files" specified
+        """
+
+        # these three lines basically make a conditional 'with' statement
+        # (we only need the zip file stack context if xml_dom is None)
+        # https://stackoverflow.com/a/34798330/2205380
+        with ExitStack() as stack:
+            if not xml_dom:
+                zipref = stack.enter_context(zipfile.ZipFile(path_or_file, 'r'))
+
 
             self._children = []
             self._children_elems = {}
             self._children_uuids = {}
 
-            # super().__init__(zipref, self)
-            with zipref.open('mergedimage.png') as mergedimage:
-                self._extracted_merged_image = Image.open(mergedimage)
+            if xml_dom:
+                self._extracted_merged_image = None
+                self._elem_root = xml_dom
+            else:
 
-            try:
-                with zipref.open('stack.xml') as metafile:
-                    self._elem_root = ET.fromstring(metafile.read())
-            except:
-                raise ValueError("stack.xml not found in ORA file or not parsable")
+                with zipref.open('mergedimage.png') as mergedimage:
+                    self._extracted_merged_image = Image.open(mergedimage)
+
+                try:
+                    with zipref.open('stack.xml') as metafile:
+                        self._elem_root = ET.fromstring(metafile.read())
+                except:
+                    raise ValueError("stack.xml not found in ORA file or not parsable")
 
             self._elem = self._elem_root[0]  # get the "root" layer group
 
@@ -240,14 +268,17 @@ class Project:
                 for child_elem in parent._elem:
                     if not child_elem.attrib.get('uuid', None):
                         self._generated_uuids = True
-                        child_elem.set('uuid', str(uuid.uuid4()))
+                        child_elem.attrib.set('uuid', str(uuid.uuid4()))
 
                     if child_elem.tag == 'stack':
                         _new = Group(self, child_elem)
                         _build_tree(_new)
                     elif child_elem.tag == 'layer':
-                        with zipref.open(child_elem.attrib['src']) as layerFile:
-                            image = Image.open(layerFile).convert('RGBA')
+                        if xml_dom:
+                            image = Image.open(srcs_to_files[child_elem.attrib.get('src')]).convert('RGBA')
+                        else:
+                            with zipref.open(child_elem.attrib['src']) as layerFile:
+                                image = Image.open(layerFile).convert('RGBA')
                         _new = Layer(image, self, child_elem)
                     else:
                         print(f"Warning: unknown tag in stack: {child_elem.tag}")
@@ -311,7 +342,6 @@ class Project:
         with zipfile.ZipFile(path_or_file, 'w') as zipref:
 
             zipref.writestr('mimetype', "image/openraster".encode())
-            zipref.writestr('stack.xml', ET.tostring(self._elem_root, method='xml'))
 
             if not composite_image:
                 if use_original and self._extracted_merged_image:
@@ -332,6 +362,8 @@ class Project:
                     layer._elem.attrib['src'] = new_filename
                     filename_counter += 1
                     self._zip_store_image(zipref, layer['src'], layer.get_image_data(raw=True))
+
+            zipref.writestr('stack.xml', ET.tostring(self._elem_root, method='xml'))
 
     def _get_parent_from_path(self, path):
 
