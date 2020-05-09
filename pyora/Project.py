@@ -268,7 +268,7 @@ class Project:
                 for child_elem in parent._elem:
                     if not child_elem.attrib.get('uuid', None):
                         self._generated_uuids = True
-                        child_elem.attrib.set('uuid', str(uuid.uuid4()))
+                        child_elem.set('uuid', str(uuid.uuid4()))
 
                     if child_elem.tag == 'stack':
                         _new = Group(self, child_elem)
