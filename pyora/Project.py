@@ -293,7 +293,7 @@ class Project:
 
             self._children.append(self._root_group)
             self._children_elems[self._elem] = self._root_group
-            self._children_uuids[self._root_group.uuid] = self._root_group
+
 
             _build_tree(self._root_group)
 
