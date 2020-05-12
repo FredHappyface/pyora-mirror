@@ -1,16 +1,7 @@
-import sys
-import io
-import math
-import zipfile
-import getpass
 from PIL import Image
-import struct
-import os
-import xml.etree.cElementTree as ET
-from io import BytesIO
-from pyora.Render import Renderer, make_thumbnail
-from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
-import re
+from pyora.Render import Renderer
+from pyora import TYPE_GROUP, TYPE_LAYER
+
 
 class OpenRasterItemBase:
 

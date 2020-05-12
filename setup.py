@@ -1,7 +1,7 @@
 from setuptools import setup
 import os
 
-install_requires = ['pillow', 'numpy']
+install_requires = ['pillow', 'numpy', 'defusedxml']
 # if os.environ.get('READTHEDOCS', None) is None:
 #     install_requires.append('python-lzo')
 

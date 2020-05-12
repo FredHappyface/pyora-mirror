@@ -1,13 +1,8 @@
-import sys
 import io
-import math
 import zipfile
-import getpass
 from PIL import Image
-import struct
-import os
-import xml.etree.cElementTree as ET
-from io import BytesIO
+import defusedxml.ElementTree as ET
+from xml.etree.ElementTree import Element
 from pyora.Render import Renderer, make_thumbnail
 from pyora.Layer import Layer, Group
 from pyora import TYPE_GROUP, TYPE_LAYER, ORA_VERSION
@@ -394,7 +389,7 @@ class Project:
             self._generated_uuids = True
             kwargs['uuid'] = str(uuid.uuid4())
 
-        new_elem = ET.Element(tag, {'name': name, 'x': str(offsets[0]), 'y': str(offsets[1]),
+        new_elem = Element(tag, {'name': name, 'x': str(offsets[0]), 'y': str(offsets[1]),
                                         'visibility': 'visible' if visible else 'hidden',
                                         'opacity': str(opacity), 'composite-op': composite_op,
                                     **{k: str(v) for k, v in kwargs.items() if v is not None}})

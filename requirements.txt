@@ -1,2 +1,3 @@
 Pillow>=6.2.1
 numpy>=1.16.2
+defusedxml==0.6.0
