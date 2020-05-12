@@ -291,7 +291,7 @@ class Project:
 
             self._root_group = Group(self, self._elem)
 
-            self._children.append(self._root_group)
+
             self._children_elems[self._elem] = self._root_group
 
 
@@ -321,9 +321,8 @@ class Project:
         self._elem = self._elem_root[0]
         self._root_group = Group(self, self._elem)
 
-        self._children.append(self._root_group)
         self._children_elems[self._elem] = self._root_group
-        self._children_uuids[self._root_group.uuid] = self._root_group
+
 
         self._extracted_merged_image = None
 

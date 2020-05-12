@@ -1,0 +1,2 @@
+-I have not decided the best action to distribute the test files yet, as they may be sizable. Open to suggestions!
+-In the meantime, you may direct message the repository owner directly to get the current test case files.
