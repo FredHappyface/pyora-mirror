@@ -34,18 +34,30 @@ def test_add_layer_ordering(tmp_path):
     rend.render().save(save_to)
     img = Image.open(save_to)
 
-    # by default, layers are stacked downward
-    assert list(np.asarray(img)[0][0]) == [255, 0, 0, 255]
+    # by default, layers are stacked upward
+    assert list(np.asarray(img)[0][0]) == [0, 0, 255, 255]
 
-    # this can be overridden by using explicit z index
     proj = Project.new(1, 1)
-    proj.add_layer(red_pixel, 'red', z_index=1)
-    proj.add_layer(green_pixel, 'green', z_index=2)
-    proj.add_layer(blue_pixel, 'blue', z_index=3)
+    proj.add_layer(red_pixel, 'red', z_index='below')
+    proj.add_layer(green_pixel, 'green', z_index='below')
+    proj.add_layer(blue_pixel, 'blue', z_index='below')
 
     rend = Renderer(proj)
     rend.render().save(save_to)
     img = Image.open(save_to)
 
-    assert list(np.asarray(img)[0][0]) == [0, 0, 255, 255]
+    # by default, we can also stack downward
+    assert list(np.asarray(img)[0][0]) == [255, 0, 0, 255]
+
+    # they can also be overridden by using explicit z index
+    proj = Project.new(1, 1)
+    proj.add_layer(red_pixel, 'red', z_index=1)
+    proj.add_layer(green_pixel, 'green', z_index=3000)
+    proj.add_layer(blue_pixel, 'blue', z_index=2)
+
+    rend = Renderer(proj)
+    rend.render().save(save_to)
+    img = Image.open(save_to)
+
+    assert list(np.asarray(img)[0][0]) == [0, 255, 0, 255]
 

@@ -285,13 +285,13 @@ class Group(OpenRasterItemBase):
     def __repr__(self):
         return f'<OpenRaster Group "{self.name}" ({self.uuid})>'
 
-    def add_layer(self, image, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+    def add_layer(self, image, name, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, **kwargs):
         return self._project._add_layer(image, self._elem, name, z_index=z_index, offsets=offsets,
                                         opacity=opacity, visible=visible, composite_op=composite_op,
                                         uuid=uuid, **kwargs)
 
-    def add_group(self, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+    def add_group(self, name, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, **kwargs):
         return self._project._add_group(self._elem, name, z_index=z_index, offsets=offsets,
                                         opacity=opacity, visible=visible, composite_op=composite_op,

@@ -379,7 +379,18 @@ class Project:
         found = re.findall(r'(.*)\[(\d+)\]', path)
         return found[0] if found else (path, 1)
 
-    def _add_elem(self, tag, parent_elem, name, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
+    def _resolve_z_index(self, parent_elem, z_index):
+        if z_index == 'above':
+            return 0
+        elif z_index == 'below':
+            return len(parent_elem)
+        elif z_index >= 1:
+            # xml library does not mind negative numbers, but we check anyway to be safe
+            return max(0, len(parent_elem) - (z_index - 1))
+        else:
+            return 0
+
+    def _add_elem(self, tag, parent_elem, name, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True, composite_op="svg:src-over",
                   **kwargs):
 
         if tag == 'stack' and not 'isolated' in kwargs:
@@ -393,7 +404,9 @@ class Project:
                                         'visibility': 'visible' if visible else 'hidden',
                                         'opacity': str(opacity), 'composite-op': composite_op,
                                     **{k: str(v) for k, v in kwargs.items() if v is not None}})
-        parent_elem.insert(len(parent_elem) - (z_index - 1), new_elem)
+
+        parent_elem.insert(self._resolve_z_index(parent_elem, z_index), new_elem)
+
         return new_elem
 
     def _add_layer(self, image, parent_elem, name, **kwargs):
@@ -490,7 +503,8 @@ class Project:
             else:
                 current_group = existing[0]
 
-    def add_layer(self, image, path=None, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+
+    def add_layer(self, image, path=None, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, **kwargs):
         """
         Append a new layer to the project
@@ -498,6 +512,9 @@ class Project:
         :param path: Absolute filesystem-like path of the layer in the project. For example "/layer1" or
         "/group1/layer2". If given without a leading slash, like "layer3", we assume the layer is placed at
         the root of the project. If omitted or set to None, path is set to the filename of the input image.
+        :param z_index: the index to place the new layer in inside of the group. 'above' places the layer at the
+        top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
+        place the layer at that z_index, similar to css z-indices
         :param offsets: tuple of (x, y) offset from the top-left corner of the Canvas
         :param opacity: float - layer opacity 0.0 to 1.0
         :param visible: bool - is the layer visible
@@ -520,13 +537,16 @@ class Project:
         return self._add_layer(image, parent_elem, name, z_index=z_index, offsets=offsets, opacity=opacity, visible=visible,
                         composite_op=composite_op, uuid=uuid, **kwargs)
 
-    def add_group(self, path, z_index=1, offsets=(0, 0,), opacity=1.0, visible=True,
+    def add_group(self, path, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, isolated=True, **kwargs):
         """
         Append a new layer group to the project
         :param path: Absolute filesystem-like path of the group in the project. For example "/group1" or
         "/group1/group2". If given without a leading slash, like "group3", we assume the group is placed at
         the root of the project.
+        :param z_index: the index to place the new layer in inside of the group. 'above' places the layer at the
+        top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
+        place the layer at that z_index, similar to css z-indices
         :param offsets: tuple of (x, y) offset from the top-left corner of the Canvas
         :param opacity: float - group opacity 0.0 to 1.0
         :param visible: bool - is the group visible
@@ -576,7 +596,7 @@ class Project:
         parent_elem.removeChild(root_child._elem)
         
 
-    def move(self, src_uuid, dst_uuid, dst_z_index=1):
+    def move(self, src_uuid, dst_uuid, dst_z_index='above'):
         """
         Move some layer or group and all of its children somewhere else inside the project
         If there are some layer groups that are missing for the destination to exist, they
@@ -599,7 +619,7 @@ class Project:
 
         old_parent_elem = child.parent._elem
         old_parent_elem.removeChild(child._elem)
-        self._insertElementAtIndex(dest_parent._elem, dst_z_index-1, child._elem)
+        self._insertElementAtIndex(self._resolve_z_index(dest_parent._elem, dst_z_index), child._elem)
 
     @property
     def dimensions(self):
