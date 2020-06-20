@@ -93,7 +93,7 @@ class OpenRasterItemBase:
             raise ValueError("It is not possible to set the z-index of the root group")
         parent = self.parent._elem
         parent.remove(self._elem)
-        parent.insert(len(parent) - (new_z_index - 1), self._elem)
+        parent.insert(self._project._resolve_z_index(parent, new_z_index), self._elem)
 
     @property
     def visible(self):
