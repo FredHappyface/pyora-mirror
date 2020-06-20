@@ -59,10 +59,6 @@ def dst_in(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     Fa = 0; Fb = αs
     co = αb x Cb x αs
     αo = αb x αs
-
-    :param source:
-    :param destination:
-    :return:
     """
 
     out_alpha = lower_alpha * upper_alpha
@@ -76,9 +72,6 @@ def dst_out(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     reverse 'Clip' composite mode
     All parts of 'layer below' which are alpha in 'layer above' will be made also alpha in 'layer below'
     (to whatever degree of alpha they were)
-    :param img_in:
-    :param img_layer:
-    :return:
     """
 
     out_alpha = lower_alpha * (1 - upper_alpha)
@@ -90,10 +83,6 @@ def dst_atop(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     place the layer below above the 'layer above' in places where the 'layer above' exists
     where 'layer below' does not exist, but 'layer above' does, place 'layer-above'
-
-    :param img_in:
-    :param img_layer:
-    :return:
     """
 
     out_alpha = (upper_alpha * (1 - lower_alpha)) + (lower_alpha * upper_alpha)
@@ -111,9 +100,6 @@ def dst_atop(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
 def src_atop(lower_alpha, upper_alpha, lower_rgb, upper_rgb):
     """
     place the layer below above the 'layer above' in places where the 'layer above' exists
-    :param img_in:
-    :param img_layer:
-    :return:
     """
 
     out_alpha = (upper_alpha * lower_alpha) + (lower_alpha * (1 - upper_alpha))

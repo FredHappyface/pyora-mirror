@@ -31,9 +31,8 @@ class OpenRasterItemBase:
 
     @property
     def parent(self):
-        """
-        Get the group object for the parent of this layer or group
-        :return:
+        """Get the group object for the parent of this layer or group
+
         """
         if self._elem is self._project._root_group._elem:
             return None
@@ -49,7 +48,8 @@ class OpenRasterItemBase:
     @property
     def uuid(self):
         """
-        :return: str - the layer uuid
+        Returns:
+            str: the layer uuid
         """
         return self._elem.attrib.get('uuid', None)
 
@@ -61,7 +61,8 @@ class OpenRasterItemBase:
     @property
     def name(self):
         """
-        :return: str - the layer name
+        Returns:
+            str: the layer name
         """
         return self._elem.attrib.get('name', None)
 
@@ -72,10 +73,13 @@ class OpenRasterItemBase:
 
     @property
     def z_index(self):
-        """
+        """Get the current z_index
+
         Get the stacking position of the layer, relative to the group it is in (or the root group).
         Higher numbers are 'on top' of lower numbers. The lowest value is 1.
-        :return: int - the z_index of the layer
+
+        Returns:
+            int: the z_index of the layer
         """
         if self.parent is None:
             return 1
@@ -83,11 +87,16 @@ class OpenRasterItemBase:
 
     @z_index.setter
     def z_index(self, new_z_index):
-        """
+        """Change the current z_index
+
         Reposition this layer inside of this group. (Uses 'relative' z_index)
         As with most z_index, 1 is the lowest value (painted first)
-        :param new_z_index:
-        :return:
+
+        Args:
+            new_z_index (str, int): the index to place the new layer in inside of the group. 'above' places the layer
+                at the top of the group. 'below' places the layer at the very bottom of the group. Other numbers
+                (1 indexed) place the layer at that z_index, similar to css z-indices.
+
         """
         if self.parent is None:
             raise ValueError("It is not possible to set the z-index of the root group")
@@ -98,7 +107,8 @@ class OpenRasterItemBase:
     @property
     def visible(self):
         """
-        :return: bool - is the layer visible
+        Returns:
+            bool: is the layer visible
         """
         return self._elem.attrib.get('visibility', 'visible') == 'visible'
 
@@ -109,7 +119,8 @@ class OpenRasterItemBase:
     @property
     def hidden(self):
         """
-        :return: bool - is the layer hidden
+        Returns:
+            bool: is the layer hidden
         """
         return not self.visible
 
@@ -117,12 +128,11 @@ class OpenRasterItemBase:
     def hidden(self, value):
         self._elem.set('visibility', 'hidden' if value else 'visible')
 
-
-
     @property
     def visible_rendered(self):
         """
-        :return: bool - visible property of this group when considering all ancestors
+        Returns:
+            bool: visible property of this group when considering all ancestors
         """
         parent = self
         while True:
@@ -135,14 +145,16 @@ class OpenRasterItemBase:
     @property
     def hidden_rendered(self):
         """
-        :return: bool - hidden property of this group when considering all ancestors
+        Returns:
+            bool: hidden property of this group when considering all ancestors
         """
         return not self.visible_rendered
 
     @property
     def opacity(self):
         """
-        :return: float 0.0 - 1.0 defining opacity
+        Returns:
+            float: 0.0 - 1.0 defining opacity
         """
         try:
             return float(self._elem.attrib.get('opacity', '1'))
@@ -157,7 +169,8 @@ class OpenRasterItemBase:
     @property
     def offsets(self):
         """
-        :return: (left, top) starting coordinates of the top left corner of the png data on the canvas
+        Returns:
+            tuple[int]: (left, top) starting coordinates of the top left corner of the png data on the canvas
         """
         try:
             return int(self._elem.attrib.get('x', '0')), int(self._elem.attrib.get('y', '0'))
@@ -174,7 +187,8 @@ class OpenRasterItemBase:
     def dimensions(self):
         """
         Not a supported ORA spec metadata, but we can read the specific PNG data to obtain the dimension value
-        :return: (width, height) tuple of dimensions based on the content rect
+        Returns:
+            tuple[int]: (width, height) tuple of dimensions based on the content rect
         """
         raise NotImplementedError()
 
@@ -182,23 +196,28 @@ class OpenRasterItemBase:
     def bounding_rect(self):
         """
         Not a supported ORA spec metadata, but we can read the specific PNG data to obtain the dimension value
-        :return: (left, top, right, bottom) tuple of content rect
+        Returns:
+            tuple[int]: (left, top, right, bottom) tuple of content rect
         """
         raise NotImplementedError()
 
     @property
     def raw_attributes(self):
-        """
+        """Get a dict of object xml attributes
+
         Get a dict of key:value pairs of xml attributes for the element defining this object
         Useful if something is not yet defined as a method in this library
-        :return: dict of attributes
+
+        Returns:
+            dict: dict of attributes
         """
         return self._elem.attrib
 
     @property
     def composite_op(self):
         """
-        :return: string of composite operation intended for the layer / group
+        Returns:
+            string: composite operation intended for the layer / group
         """
         return self._elem.attrib.get('composite-op', None)
 
@@ -226,22 +245,25 @@ class Layer(OpenRasterItemBase):
         self.image = image
 
     def set_image_data(self, image):
-        """
-        Change the image data for this layer
-        :param image: pil Image() object of the new layer
-        :return: None
+        """Change the image data for this layer
+
+        Args:
+            image (PIL.Image()): pil Image() object of the new layer data
         """
         self._set_image_data(image)
 
     def get_image_data(self, raw=True):
-        """
-        Get a PIL Image() object of the layer.
+        """Get a PIL Image() object of the layer.
+
         By default the returned image will always be the same dimension as the project canvas, and the original
         image data will be placed / cropped inside of that.
-        :param raw: Instead of cropping to canvas, just get the image data exactly as it exists
-        :return: PIL Image()
-        """
 
+        Args:
+            raw (bool): If True, Instead of cropping to canvas, just get the image data exactly as it exists
+
+        Returns:
+            PIL Image() : image data
+        """
 
         _layerData = self.image
 
@@ -258,7 +280,9 @@ class Layer(OpenRasterItemBase):
         """
         Get the stacking position of the layer, relative to the entire canvas.
         Higher numbers are 'on top' of lower numbers. The lowest value is 1.
-        :return: int - the z_index of the layer
+
+        Returns:
+            int: the z_index of the layer
         """
         for i, layer in enumerate(self._project, 1):
             if layer == self:
@@ -269,7 +293,9 @@ class Layer(OpenRasterItemBase):
     def dimensions(self):
         """
         Not a supported ORA spec metadata, but we can read the specific PNG data to obtain the dimension value
-        :return: (width, height) tuple of dimensions based on the content rect
+
+        Returns:
+            tuple[int]: (width, height) tuple of dimensions based on the content rect
         """
         return self.image.size
 
@@ -327,8 +353,9 @@ class Group(OpenRasterItemBase):
         be the current canvas already painted, instead of a blank canvas.
         To comply with ORA spec, the isolation property is ignored (and groups are forced to be rendered isolated)
         if either (1) their opacity is less than 1.0 or (2) they use a composite-op other than 'svg:src-over'
-        :param value:
-        :return:
+
+        Args:
+            value (bool): is the object layer / group 'isolated'
         """
         self._elem.set('isolation', 'isolate' if value else 'auto')
 

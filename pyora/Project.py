@@ -22,9 +22,15 @@ class Project:
         self._isolate_non_opaque_groups = False
 
     def get_by_path(self, path):
-        """
+        """Find a group or layer object using a *Nix-like 'path', based on the names of project groups / layers
 
-        :return:
+        Paths look like '/group1/layer2', note that while this provides good ability to extract any specific layer
+        in most circumstances, it does not work well in the case that there are multiple groups / layers in the same
+        group, with the same name. In this case, you will need to drill down by using .children(), or alternatively
+        getting by uuid with get_by_uuid()
+
+        Returns:
+            pyora.Group or pyora.Layer: the found layer object
         """
 
         if path == '/':
@@ -70,9 +76,10 @@ class Project:
 
     @property
     def root(self):
-        """
-        Get a reference to the outermost layer group containing everything else
-        :return: Group() Object
+        """Get a reference to the outermost layer group containing everything else
+
+        Returns:
+            pyora.Group: root Group() Object
         """
         return self._root_group
 
@@ -134,14 +141,19 @@ class Project:
 
     @staticmethod
     def extract_layer(path_or_file, path=None, uuid=None, pil=False):
-        """
-        Efficiently extract just one specific layer image
-        :param path_or_file: Path to ORA file or file handle
-        :param path: Path of layer to extract in the ORA file
-        :param uuid: uuid of layer to search for in the ORA file (if path not provided)
-        :param pil: for consistency, if true, wrap the image with PIL and return Image()
-        otherwise return raw bytes
-        :return: bytes or PIL Image()
+        """Efficiently extract just one specific layer image
+
+        This method extracts just the image data of the thumbnail, without reading the entire ORA file.
+        Specify either a path or uuid, not both.
+
+        Args:
+            path_or_file (str, File-Like object) : filesystem path or .read()-able file object of ORA file to load
+            path (str): Path of layer to extract in the ORA file
+            uuid (str): uuid of layer to search for in the ORA file (if path not provided)
+            pil (bool): for consistency, if true, wrap the image with PIL and return PIL.Image() object
+
+        Returns:
+            Bytes or PIL.Image(): Depends on 'pil' argument
         """
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
             with zipref.open('stack.xml') as metafile:
@@ -165,12 +177,16 @@ class Project:
 
     @staticmethod
     def extract_composite(path_or_file, pil=False):
-        """
-        Efficiently extract just the composite image
-        :param path_or_file: Path to ORA file or file handle
-        :param pil: for consistency, if true, wrap the image with PIL and return Image()
-        otherwise return raw bytes
-        :return: bytes or PIL Image()
+        """Efficiently extract just existing composite full resolution image in the ORA file
+
+        This method extracts just the image data of the thumbnail, without reading the entire ORA file
+
+        Args:
+            path_or_file (str, File-Like object) : filesystem path or .read()-able file object of ORA file to load
+            pil (bool): for consistency, if true, wrap the image with PIL and return PIL.Image() object
+
+        Returns:
+            Bytes or PIL.Image(): Depends on 'pil' argument
         """
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
             with zipref.open('mergedimage.png') as imgdata:
@@ -180,12 +196,16 @@ class Project:
 
     @staticmethod
     def extract_thumbnail(path_or_file, pil=False):
-        """
-        Efficiently extract just the thumbnail image
-        :param path_or_file: Path to ORA file or file handle
-        :param pil: for consistency, if true, wrap the image with PIL and return Image()
-        otherwise return raw bytes
-        :return: bytes or PIL Image()
+        """Efficiently extract just the thumbnail image
+
+        This method extracts just the image data of the thumbnail, without reading the entire ORA file
+
+        Args:
+            path_or_file (str, File-Like object) : filesystem path or .read()-able file object of ORA file to load
+            pil (bool): for consistency, if true, wrap the image with PIL and return PIL.Image() object
+
+        Returns:
+            Bytes or PIL.Image(): Depends on 'pil' argument
         """
         with zipfile.ZipFile(path_or_file, 'r') as zipref:
             with zipref.open('Thumbnails/thumbnail.png') as imgdata:
@@ -195,22 +215,31 @@ class Project:
 
     @staticmethod
     def load(path_or_file):
-        """
-        Factory function. Get a new project with data from an existing ORA file
-        :param path: path to ORA file to load
-        :return: None
+        """Load an existing ORA file into a pyora project
+
+        Factory function. will instantiate and return a new pyora.Project() when called.
+
+        Args:
+            path_or_file (str, File-Like object) : filesystem path or .read()-able file object of ORA file to load
+
+        Returns:
+            pyora.Project : the new instance
         """
         proj = Project()
         proj._load(path_or_file)
         return proj
 
     def from_stack_xml(self, xml_dom, srcs_to_files):
-        """
-        Create a new project from XML stack spec, and references to layer data files.
-        :param xml_dom: either a string of xml or the parsed XML elementtree instance
-        :param srcs_to_files: dict of layer "src" attribute strings, to .read()-able File-like objects
-        of the layer PNG (or other image) data. Any images that PIL supports are fine.
-        :return: None
+        """Overwrite the current pyora project instance directly from XML stack + image data sources
+
+        This is the minimum amount of data needed to create an ORA project, if perhaps storing ORA files is not
+        as convenient for your use case.
+
+        Args:
+            xml_dom (str, ET): either a string of xml or the parsed XML elementtree instance
+            srcs_to_files (dict): dict of layer "src" attribute strings, to .read()-able File-like objects of
+                of the layer PNG (or other image) data. Any images that PIL supports are fine.
+
         """
         if type(xml_dom) is str:
             xml_dom = ET.fromstring(xml_dom)
@@ -295,13 +324,18 @@ class Project:
 
     @staticmethod
     def new(width, height, xres=72, yres=72):
-        """
-        Factory function. Initialize and return a new project.
-        :param width: initial width of canvas
-        :param height: initial height of canvas
-        :param xres: nominal resolution pixels per inch in x
-        :param yres: nominal resolution pixels per inch in y
-        :return: None
+        """Start a blank new ORA project
+
+        Factory function. will instantiate and return a new pyora.Project() when called.
+
+        Args:
+            width (int): initial width of canvas, in px
+            height (int): initial height of canvas, in px
+            xres (int): nominal resolution pixels per inch in x
+            yres (int): nominal resolution pixels per inch in y
+
+        Returns:
+            pyora.Project : the new instance
         """
         proj = Project()
         proj._new(width, height, xres, yres)
@@ -322,16 +356,17 @@ class Project:
         self._extracted_merged_image = None
 
     def save(self, path_or_file, composite_image=None, use_original=False):
-        """
-        Save the current project state to an ORA file.
-        :param path: path to the ora file to save
-        :param composite_image: - PIL Image() object of the composite rendered canvas. It is used to create the
-        mergedimage full rendered preview, as well as the thumbnail image. If not provided, we will attempt to
-        generate one by stacking all of the layers in the project. Note that the image you pass may be modified
-        during this process, so if you need to use it elsewhere in your code, you should copy() first.
-        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
-        use that for the 'mergedimage' in the new file
-        :return: None
+        """Save the current project state to an ORA file.
+
+        Args:
+            path (str): path to the ora file to save
+            composite_image (PIL.Image()): PIL Image() object of the composite rendered canvas. It is used to
+                create the mergedimage full rendered preview, as well as the thumbnail image. If not provided,
+                one will be generated by pyora's Render() class by stacking all of the layers in the project.
+                Note that the image you pass may be modified during this process, so if you need to use it elsewhere
+                in your code, you should copy() first.
+            use_original (bool): If true, and If there was a stored 'mergedimage' already in the file which was opened,
+                use that for the 'mergedimage' in the new file, instead of rendering a new one.
         """
         with zipfile.ZipFile(path_or_file, 'w') as zipref:
 
@@ -481,7 +516,6 @@ class Project:
         """
         creates all of the groups which would be required UNDER the specified path (not the final, deepest path element)
         as this works with paths it will just choose the first matching path if duplicate names are found
-        :return:
         """
 
         # absolute path slash is for styling/consistency only, remove it if exists
@@ -506,20 +540,25 @@ class Project:
 
     def add_layer(self, image, path=None, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, **kwargs):
-        """
-        Append a new layer to the project
-        :param image: a PIL Image() object containing the image data to add
-        :param path: Absolute filesystem-like path of the layer in the project. For example "/layer1" or
-        "/group1/layer2". If given without a leading slash, like "layer3", we assume the layer is placed at
-        the root of the project. If omitted or set to None, path is set to the filename of the input image.
-        :param z_index: the index to place the new layer in inside of the group. 'above' places the layer at the
-        top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
-        place the layer at that z_index, similar to css z-indices
-        :param offsets: tuple of (x, y) offset from the top-left corner of the Canvas
-        :param opacity: float - layer opacity 0.0 to 1.0
-        :param visible: bool - is the layer visible
-        :param composite_op: str - composite operation attribute passed directly to stack / layer element
-        :return: Layer() - reference to the newly created layer object
+        """Append a new layer to the project
+
+        Args:
+            image (PIL.Image()): a PIL Image() object containing the image data to add
+            path (str): Absolute filesystem-like path of the group in the project. For example "/group1" or
+                "/group1/group2". If given without a leading slash, like "group3", we assume the group is placed at
+                the root of the project.
+            z_index (str, int): the index to place the new layer in inside of the group. 'above' places the layer at the
+                top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
+                place the layer at that z_index, similar to css z-indices.
+            offsets (tuple[int]): tuple of (x, y) offset (in px) from the top-left corner of the Canvas
+            opacity (float): group opacity 0.0 to 1.0
+            visible (bool): is the group visible (hidden if false)
+            composite_op (str): composite operation attribute passed directly to stack / layer element (see blend
+                modes documentation)
+            uuid (str): uuid identifier value for this group
+
+        Returns:
+            pyora.Layer: reference to the newly created layer object
         """
         if path is None or not path:
             path = image.filename.split('/')[-1]
@@ -539,22 +578,29 @@ class Project:
 
     def add_group(self, path, z_index='above', offsets=(0, 0,), opacity=1.0, visible=True,
                   composite_op="svg:src-over", uuid=None, isolated=True, **kwargs):
+        """Append a new layer group to the project
+
+        The group added this way starts out with no children (empty)
+
+        Args:
+            path (str): Absolute filesystem-like path of the group in the project. For example "/group1" or
+                "/group1/group2". If given without a leading slash, like "group3", we assume the group is placed at
+                the root of the project.
+            z_index (str, int): the index to place the new layer in inside of the group. 'above' places the layer at the
+                top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
+                place the layer at that z_index, similar to css z-indices.
+            offsets (tuple[int]): tuple of (x, y) offset (in px) from the top-left corner of the Canvas
+            opacity (float): group opacity 0.0 to 1.0
+            visible (bool): is the group visible (hidden if false)
+            composite_op (str): composite operation attribute passed directly to stack / layer element (see blend
+                modes documentation)
+            uuid (str): uuid identifier value for this group
+            isolation (bool): Is the group isolated (composited separately from the groups below it)
+
+        Returns:
+            pyora.Layer: reference to the newly created group layer object
         """
-        Append a new layer group to the project
-        :param path: Absolute filesystem-like path of the group in the project. For example "/group1" or
-        "/group1/group2". If given without a leading slash, like "group3", we assume the group is placed at
-        the root of the project.
-        :param z_index: the index to place the new layer in inside of the group. 'above' places the layer at the
-        top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
-        place the layer at that z_index, similar to css z-indices
-        :param offsets: tuple of (x, y) offset from the top-left corner of the Canvas
-        :param opacity: float - group opacity 0.0 to 1.0
-        :param visible: bool - is the group visible
-        :param composite_op: str - composite operation attribute passed directly to stack / layer element
-        :param uuid: str - uuid identifier value for this group
-        :param isolation:bool - True or False
-        :return: Layer() - reference to the newly created layer object
-        """
+
         self._make_groups_recursively(path)
 
         if not path[0] == '/':
@@ -571,11 +617,10 @@ class Project:
                         composite_op=composite_op, uuid=uuid, **kwargs)
 
     def remove(self, uuid):
-        """
-        Remove some layer or group and all of its children from the project
-        :param path:
-        :param uuid:
-        :return:
+        """Remove a layer or group
+
+        Args:
+            uuid (str): The UUID of the layer or group to remove
         """
         
         root_child = self.get_by_uuid(uuid)
@@ -597,15 +642,19 @@ class Project:
         
 
     def move(self, src_uuid, dst_uuid, dst_z_index='above'):
-        """
+        """Reposition a layer or group
+
         Move some layer or group and all of its children somewhere else inside the project
         If there are some layer groups that are missing for the destination to exist, they
         will be created automatically.
-        
-        :param uuid: source group/layer uuid to move        
-        :param dest_uuid: dest group uuid to place source element inside of
-        :param dest_z_index: inside of the destination group, place the moved layer/group at this index
-        :return: None
+
+        Args:
+            uuid (str): source group/layer uuid to move
+            dest_uuid (str): dest group uuid to place source element inside of
+            dest_z_index (str, int): the index to place the new layer in inside of the group. 'above' places the layer at the
+                top of the group. 'below' places the layer at the very bottom of the group. Other numbers (1 indexed)
+                place the layer at that z_index, similar to css z-indices
+
         """
 
         if dst_uuid is None:
@@ -623,9 +672,10 @@ class Project:
 
     @property
     def dimensions(self):
-        """
-        Project (width, height) dimensions in px
-        :return: (width, height) tuple
+        """Get Project (width, height) dimensions in px
+
+        Returns:
+            tuple[int]: (width, height) of project, in px
         """
         return int(self._elem_root.attrib['w']), int(self._elem_root.attrib['h'])
 
@@ -642,11 +692,14 @@ class Project:
 
 
     def get_image_data(self, use_original=False):
-        """
-        Get a PIL Image() object of the entire project (composite)
-        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
-        just return that. In any other case a new merged image is generated.
-        :return: PIL Image()
+        """Get a PIL Image() object of the entire project (composite)
+
+        Args:
+            use_original (bool): If true, and If there was a stored 'mergedimage' already in the file which was opened,
+                just return that. In any other case a new merged image is generated.
+
+        Returns:
+            PIL Image(): Image object
         """
 
         if self._extracted_merged_image and use_original:
@@ -656,11 +709,16 @@ class Project:
         return r.render()
 
     def get_thumbnail_image_data(self, use_original=False):
-        """
-        Get a PIL Image() object of the entire project (composite) (standard 256x256 max ORA thumbnail size
-        :param use_original: IF true, and If there was a stored 'mergedimage' already in the file which was opened,
-        just return that. In any other case a new merged image is generated.
-        :return: PIL Image()
+        """Get the thumbnail image for the ora file
+
+        Get PIL Image() object, composite, resized to standard 256x256 max ORA thumbnail size.
+
+        Args:
+            use_original (bool): If true, and If there was a stored 'mergedimage' already in the file which was opened,
+                just return that. In any other case a new merged image is generated.
+
+        Returns:
+            PIL Image(): Image object
         """
         if self._extracted_merged_image and use_original:
             return make_thumbnail(self._extracted_merged_image)
@@ -669,25 +727,28 @@ class Project:
         return make_thumbnail(r.render())
 
     def get_stack_xml(self):
-        """
-        Get the current stack.xml representation of the project
-        (equivalent to the 'stack.xml' which would be saved on .save())
-        :return: string of stack xml
+        """Get the current stack xml representation of the project
+
+        Can be saved for later use with Project.set_stack_xml(), equivalent to the 'stack.xml' which would be
+        saved on Project.save()
+
+        Returns:
+            str: string of stack xml
         """
         return ET.tostring(self._elem_root, method='xml')
 
     def set_stack_xml(self, xml_dom, new_sources=None):
-        """
+        """Set the current stack xml representation of the project
+
         Using the 'stack.xml' standard format, update the current project to reflect the new scheme.
         This allows updating attributes / positioning in an exportable format without needing to
-        store / transfer all of the data in the raster files themselves.
+        store / transfer all of the data in the raster files themselves. Important! all uuids in
+        the incoming scheme must match uuids in the current project, or undefined behavior fill occur.
 
-        - all uuids in the incoming scheme must match uuids in the current project
-
-        :param xml_dom: String or parsed elementtree() of the stack.xml standard format
-        :param new_sources: (optional) dict of {uuid: new Image() object} of raster image sources
-        to update during application of the new xml stack
-        :return: None
+        Args:
+            xml_dom (str, ET()): String or parsed elementtree() of the stack.xml standard format
+            new_sources (dict): (optional) dict of {uuid: new Image() object} of raster image sources
+                to update during application of the new xml stack
         """
 
         if type(xml_dom) is str:

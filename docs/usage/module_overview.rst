@@ -10,3 +10,6 @@ Module Overview
 
 .. autoclass:: pyora.Group
    :members:
+
+.. autoclass:: pyora.Renderer
+   :members:

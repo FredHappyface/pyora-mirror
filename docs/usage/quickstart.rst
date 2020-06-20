@@ -11,7 +11,8 @@ General Info
 Limitations
 =======================================
     - The implementations for the non-separable blend modes (hue, color, saturation, luminosity) are currently non-vectorized and quite slow
-    - When modifying an existing file in place, currently only adding / modifying layers is supported. Moving in the tree and deleting soon to come.
+    - Making group opacity <1.0 for non-isolated groups is currently undefined by the standard, but seems to be defined in the main programs using the standard. By default, we can not guarantee the rendering in this case. If you would like to strictly follow the standard in this regard (groups with <1.0 opacity become isolated), you may set:
+        - <instance of Project()>._isolate_non_opaque_groups = True
 
 
 Reading Data
@@ -86,7 +87,10 @@ Z_indexes
 =======================================
 
 You can get the z_index of layers relative to the group they are in, or globally in the whole project.
-When adding layers, the z_index always refers the offset in the group you are putting the layer in.
+When adding layers, you have three choices for z_index:
+    -'above' , which places the layer "above" (painted on top of) all other layers in that group
+    -'below' , which places the layer "below" all other layers in that group
+    -some integer, **1 indexed**, to specify where to insert the layer. (for example, z_index=1 is the same as z_index='below')
 
 ::
 

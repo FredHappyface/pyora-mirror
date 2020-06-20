@@ -1,59 +1,5 @@
 from PIL import Image
 
-"""
-Blend modes from the spec:
-
-Value	        Blending function	     Compositing Operator
-svg:src-over	Normal	                 Source Over
-svg:multiply	Multiply	             Source Over
-svg:screen	    Screen	                 Source Over
-svg:overlay	    Overlay	                 Source Over
-svg:darken	    Darken	                 Source Over
-svg:lighten	    Lighten	                 Source Over
-svg:color-dodge	Color Dodge	             Source Over
-svg:color-burn	Color Burn	             Source Over
-svg:hard-light	Hard Light	             Source Over
-svg:soft-light	Soft Light	             Source Over
-svg:difference	Difference	             Source Over
-svg:color	    Color	                 Source Over
-svg:luminosity	Luminosity	             Source Over
-svg:hue	        Hue	                     Source Over
-svg:saturation	Saturation	             Source Over
-svg:plus	    Normal	                 Lighter
-svg:dst-in    	Normal	                 Destination In
-svg:dst-out	    Normal	                 Destination Out
-svg:src-atop	Normal	                 Source Atop
-svg:dst-atop	Normal	                 Destination Atop
-"""
-
-
-
-"""
-Modes in py blend
-
-svg:src-over	*
-svg:multiply	*
-svg:screen	    Screen	                 Source Over
-svg:overlay	    Overlay	                 Source Over
-svg:darken	    *
-svg:lighten	    *
-svg:color-dodge	Color Dodge	             Source Over
-svg:color-burn	Color Burn	             Source Over
-svg:hard-light	*
-svg:soft-light	*
-svg:difference	*
-svg:color	    Color	                 Source Over
-svg:luminosity	Luminosity	             Source Over
-svg:hue	        Hue	                     Source Over
-svg:saturation	Saturation	             Source Over
-svg:plus	    Normal	                 Lighter
-svg:dst-in    	Normal	                 Destination In
-svg:dst-out	    Normal	                 Destination Out
-svg:src-atop	Normal	                 Source Atop
-svg:dst-atop	Normal	                 Destination Atop
-
-
-"""
 
 from pyora.Blend import *
 from pyora.BlendNonSep import *
@@ -94,9 +40,6 @@ they must declare when writing OpenRaster files that their layer groups are isol
 """
 
 class Renderer:
-    """
-
-    """
 
     def __init__(self, project):
         self._project = project
@@ -108,12 +51,10 @@ class Renderer:
         return Image.fromarray(np.uint8(np.around(arr, 0)))
 
     def _render_two(self, backdrop, layer_data, offsets, opacity, composite_op='svg:src-over'):
-
-
         """
-        // merge two layers of data together
-        // this is run progressively to paint each layer in the stack
-        //console.log('render 2 called', layer.name, layer.offsets)
+        merge two layers of data together
+        this is run progressively to paint each layer in the stack
+        console.log('render 2 called', layer.name, layer.offsets)
 
         if (composite_op in blend_modes) {
             return self._blend_modes[blend_modes[composite_op]]
@@ -178,6 +119,17 @@ class Renderer:
     #     return canvas
 
     def render(self, root_group=None):
+        """Perform the full project render over the current project
+
+        Args:
+            root_group (pyora.Group): optional, instead of starting with the outermost group of the project,
+                render just the specified group and its children
+
+
+        Returns:
+            PIL.Image: The fully composited image
+        """
+
         """
         for each layer (except the lowest one), apply blend mode to it, from
         it and the layer below it
@@ -197,7 +149,6 @@ class Renderer:
          isolated stack.
          - If it is shallower, will only change depth by one by definition. If isolated, pop the stack as said above.
 
-        :return:
         """
         
         canvas = self.pil2np(Image.new('RGBA', self._project.dimensions))
