@@ -686,8 +686,8 @@ class Project:
         Args:
              size (tuple): Tuple of new (width, height) for project canvas
         """
-        self._elem_root.attrib['w'] = int(size[0])
-        self._elem_root.attrib['h'] = int(size[1])
+        self._elem_root.attrib['w'] = str(int(size[0]))
+        self._elem_root.attrib['h'] = str(int(size[1]))
 
     @property
     def ppi(self):
