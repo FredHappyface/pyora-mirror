@@ -679,6 +679,16 @@ class Project:
         """
         return int(self._elem_root.attrib['w']), int(self._elem_root.attrib['h'])
 
+    @dimensions.setter
+    def dimensions(self, size):
+        """Set the dimensions of the project canvas
+
+        Args:
+             size (tuple): Tuple of new (width, height) for project canvas
+        """
+        self._elem_root.attrib['w'] = int(size[0])
+        self._elem_root.attrib['h'] = int(size[1])
+
     @property
     def ppi(self):
         if 'xres' in self._elem_root.attrib and 'yres' in self._elem_root.attrib:
