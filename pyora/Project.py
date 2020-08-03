@@ -270,7 +270,7 @@ class Project:
             else:
 
                 with zipref.open('mergedimage.png') as mergedimage:
-                    self._extracted_merged_image = Image.open(mergedimage)
+                    self._extracted_merged_image = Image.open(mergedimage).copy()
 
                 try:
                     with zipref.open('stack.xml') as metafile:
