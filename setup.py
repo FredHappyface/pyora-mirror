@@ -12,7 +12,7 @@ setup(
     name='pyora',
     author="InkLab",
     author_email="inklabapp@gmail.com",
-    version='0.3.9',
+    version='0.3.10',
     packages=['pyora',],
     license='MIT License',
     description="Read, Write, and Render OpenRaster (.ORA) files",
