@@ -638,7 +638,7 @@ class Project:
                 del self._children_uuids[_child.uuid]
 
         # this should only have to be done for the parent for all of the other elements to be gone in the XML tree
-        parent_elem.removeChild(root_child._elem)
+        parent_elem.remove(root_child._elem)
         
 
     def move(self, src_uuid, dst_uuid, dst_z_index='above'):
@@ -667,8 +667,8 @@ class Project:
         # move elements first in the XML object repr, then the
 
         old_parent_elem = child.parent._elem
-        old_parent_elem.removeChild(child._elem)
-        self._insertElementAtIndex(self._resolve_z_index(dest_parent._elem, dst_z_index), child._elem)
+        old_parent_elem.remove(child._elem)
+        self._insertElementAtIndex(dest_parent._elem, self._resolve_z_index(dest_parent._elem, dst_z_index), child._elem)
 
     @property
     def dimensions(self):
