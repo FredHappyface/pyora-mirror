@@ -457,11 +457,11 @@ class Project:
         return obj
 
     def _add_group(self, parent_elem, name, **kwargs):
-        elem = self._add_elem('stack', parent_elem, name, **kwargs)
-        obj = Group(self, elem)
-
         if not 'isolation' in kwargs:
             kwargs['isolation'] = 'isolate'
+
+        elem = self._add_elem('stack', parent_elem, name, **kwargs)
+        obj = Group(self, elem)
 
         self._children.append(obj)
         self._children_elems[elem] = obj
