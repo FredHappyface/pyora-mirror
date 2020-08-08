@@ -193,7 +193,7 @@ class Renderer:
                     to_merge = isolated_stacks.pop()
                     merge_onto = isolated_stacks[-1]
                     isolated_stacks[-1] = self._render_two(merge_onto, to_merge,
-                                                                                   current_group.offsets,
+                                                                                   [0, 0],
                                                                                    current_group.opacity,
                                                                                    current_group.composite_op)
                 else:
